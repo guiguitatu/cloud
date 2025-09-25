@@ -66,7 +66,7 @@ data class ProdutoResponseBusca(
     val codGruEst: String
 )
 
-internal data class Produto(
+public data class Produto(
     val id: Long,
     val codigoProduto: Int,
     val descricao: String,

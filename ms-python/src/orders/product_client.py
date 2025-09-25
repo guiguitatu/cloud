@@ -32,13 +32,21 @@ class ProductGatewayClient:
 
     def _discover_gateway(self) -> str:
         """Consulta o Consul por uma instância saudável do API Gateway."""
-        response = self._session.get(
-            f"{self._consul_addr}/v1/health/service/{self._gateway_service}",
-            params={"passing": True},
-            timeout=5,
-        )
-        response.raise_for_status()
-        payload = response.json()
+        try:
+            response = self._session.get(
+                f"{self._consul_addr}/v1/health/service/{self._gateway_service}",
+                params={"passing": True},
+                timeout=5,
+            )
+            response.raise_for_status()
+            payload = response.json()
+        except requests.RequestException as exc:
+            if self._fallback_base_url:
+                self._gateway_base_url = self._fallback_base_url
+                return self._gateway_base_url
+            raise ServiceDiscoveryError(
+                f"Não foi possível consultar o Consul para {self._gateway_service}"
+            ) from exc
         if not payload:
             if self._fallback_base_url:
                 self._gateway_base_url = self._fallback_base_url

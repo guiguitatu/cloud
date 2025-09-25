@@ -28,8 +28,12 @@ def create_order_service(order: OrderRequest) -> OrderResponse:
     except Exception as exc:  # pragma: no cover - fallback genérico
         raise HTTPException(status_code=502, detail="Falha ao consultar catálogo de produtos") from exc
 
-    if product.get("codGruEst") != order.codGruEst:
-        raise HTTPException(status_code=400, detail="Grupo de estoque do pedido não confere com o produto")
+    try:
+        cod_gru_est = int(product["codGruEst"])
+    except (KeyError, TypeError, ValueError) as exc:
+        raise HTTPException(status_code=502, detail="Resposta do catálogo de produtos inválida") from exc
+
+    description = product.get("descricao")
 
     with SessionLocal() as session:
         order_number = (session.scalar(
@@ -38,8 +42,9 @@ def create_order_service(order: OrderRequest) -> OrderResponse:
 
         order_db = OrderModel(
             orderNumber=order_number,
-            description=order.description or product.get("descricao"),
-            **order.model_dump(exclude={"description"})
+            description=description,
+            codGruEst=cod_gru_est,
+            **order.model_dump(),
         )
         session.add(order_db)
         session.commit()

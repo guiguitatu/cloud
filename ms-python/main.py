@@ -2,14 +2,15 @@ import atexit, os, socket, time, requests
 import uvicorn
 import uuid
 from fastapi import FastAPI
-from fastapi.responses import PlainTextResponse
+from fastapi.responses import PlainTextResponse, RedirectResponse
 from src.orders.controller import router as orders_router
 from src.orders.model import table_registry
 
 
 CONSUL = os.getenv("CONSUL_HTTP_ADDR", "http://localhost:8500")
-SERVICE_NAME = "ms-orders"
+SERVICE_NAME = "ms-python"
 SERVICE_ID = f"{SERVICE_NAME}-{uuid.uuid4()}"
+API_ROOT = "/ms-python"
 
 
 def get_outbound_ip() -> str:
@@ -27,17 +28,27 @@ def find_free_port() -> int:
         return s.getsockname()[1]
 
 
-app = FastAPI()
+app = FastAPI(
+    docs_url=f"{API_ROOT}/",
+    openapi_url=f"{API_ROOT}/openapi.json",
+    redoc_url=None,
+    title="ms-python",
+)
 
-app.include_router(orders_router)
+app.include_router(orders_router, prefix=API_ROOT)
 
 
-@app.get("/health")
+@app.get("/", include_in_schema=False)
+def root() -> RedirectResponse:
+    return RedirectResponse(url=f"{API_ROOT}/", status_code=302)
+
+
+@app.get(f"{API_ROOT}/health")
 def health(): return {"status": "UP"}
 
-@app.get("/api/mensagem", response_class=PlainTextResponse)
+@app.get(f"{API_ROOT}/api/mensagem", response_class=PlainTextResponse)
 def mensagem(nome: str = "desenvolvedor"):
-    return f"Olá, {nome}! (ms-d-python)"
+    return f"Olá, {nome}! (ms-python)"
 
 
 def register(addr: str, port: int):
@@ -47,7 +58,7 @@ def register(addr: str, port: int):
         "Address": addr,
         "Port": port,
         "Check": {
-            "HTTP": f"http://{addr}:{port}/health",
+            "HTTP": f"http://{addr}:{port}{API_ROOT}/health",
             "Interval": "10s",
             "Timeout": "2s"
         }

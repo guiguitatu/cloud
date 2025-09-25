@@ -29,12 +29,10 @@ spring:
             - id: ms-kotlin
               uri: lb://ms-kotlin
               predicates: [ Path=/ms-kotlin/** ]
-              filters: [ StripPrefix=1 ]
 
-            - id: ms-orders
-              uri: lb://ms-orders
-              predicates: [ Path=/ms-orders/** ]
-              filters: [ StripPrefix=1 ]
+            - id: ms-python
+              uri: lb://ms-python
+              predicates: [ Path=/ms-python/** ]
 
 management:
   endpoints:

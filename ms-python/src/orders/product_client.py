@@ -17,10 +17,12 @@ class ProductGatewayClient:
         consul_addr: str | None = None,
         gateway_service: str | None = None,
         session: requests.Session | None = None,
+        fallback_base_url: str | None = None,
     ) -> None:
         self._consul_addr = consul_addr or os.getenv("CONSUL_HTTP_ADDR", "http://localhost:8500")
         self._gateway_service = gateway_service or os.getenv("GATEWAY_SERVICE_NAME", "api-gateway")
         self._session = session or requests.Session()
+        self._fallback_base_url = fallback_base_url or os.getenv("GATEWAY_BASE_URL")
         self._gateway_base_url: str | None = None
 
     def _discover_gateway(self) -> str:
@@ -33,6 +35,9 @@ class ProductGatewayClient:
         response.raise_for_status()
         payload = response.json()
         if not payload:
+            if self._fallback_base_url:
+                self._gateway_base_url = self._fallback_base_url
+                return self._gateway_base_url
             raise ServiceDiscoveryError(
                 f"Nenhuma instância saudável encontrada para {self._gateway_service}"
             )
@@ -42,6 +47,9 @@ class ProductGatewayClient:
         address = service.get("Address") or service_entry.get("Node", {}).get("Address")
         port = service.get("Port")
         if not address or not port:
+            if self._fallback_base_url:
+                self._gateway_base_url = self._fallback_base_url
+                return self._gateway_base_url
             raise ServiceDiscoveryError("Resposta do Consul incompleta para o gateway")
 
         self._gateway_base_url = f"http://{address}:{port}"

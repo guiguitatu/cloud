@@ -52,8 +52,6 @@ class OrderRequest(BaseModel):
     productCode: int
     tableNumber: int
     quantity: int
-    description: Optional[str] = None
-    codGruEst: int
 
 class OrderResponse(Order):
     id: int

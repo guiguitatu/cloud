@@ -1,0 +1,12 @@
+# Virtualenv
+.venv/
+venv/
+__pycache__/
+*.pyc
+
+# IDE
+.idea/
+.vscode/
+
+# Outras pastas temporárias
+*.log

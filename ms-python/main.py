@@ -31,6 +31,7 @@ def find_free_port() -> int:
 
 app = FastAPI(
     docs_url=None,
+    docs_url=f"{API_ROOT}/",
     openapi_url=f"{API_ROOT}/openapi.json",
     redoc_url=None,
     title="ms-python",
@@ -55,7 +56,6 @@ def swagger_ui():
         openapi_url=f"{API_ROOT}/openapi.json",
         title="ms-python - Swagger UI",
     )
-
 
 @app.get(f"{API_ROOT}/health")
 def health(): return {"status": "UP"}
@@ -88,12 +88,10 @@ def deregister():
 
 if __name__ == "__main__":
     addr = os.getenv("SERVICE_ADDRESS") or get_outbound_ip()
-    # Define a porta padrão em 8000 para facilitar o acesso direto
     port_env = os.getenv("PORT")
     port = int(port_env) if port_env else 8000
     if port == 0:
         port = find_free_port()
-    # registra antes de subir (simples p/ dev)
     for _ in range(10):
         try:
             register(addr, port); break

@@ -31,7 +31,6 @@ def find_free_port() -> int:
 
 app = FastAPI(
     docs_url=None,
-    docs_url=f"{API_ROOT}/",
     openapi_url=f"{API_ROOT}/openapi.json",
     redoc_url=None,
     title="ms-python",

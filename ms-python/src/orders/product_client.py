@@ -2,6 +2,8 @@ import os
 import random
 from typing import Any
 
+_DEFAULT_FALLBACK = object()
+
 import requests
 
 
@@ -17,12 +19,15 @@ class ProductGatewayClient:
         consul_addr: str | None = None,
         gateway_service: str | None = None,
         session: requests.Session | None = None,
-        fallback_base_url: str | None = None,
+        fallback_base_url: str | None | object = _DEFAULT_FALLBACK,
     ) -> None:
         self._consul_addr = consul_addr or os.getenv("CONSUL_HTTP_ADDR", "http://localhost:8500")
         self._gateway_service = gateway_service or os.getenv("GATEWAY_SERVICE_NAME", "api-gateway")
         self._session = session or requests.Session()
-        self._fallback_base_url = fallback_base_url or os.getenv("GATEWAY_BASE_URL")
+        if fallback_base_url is _DEFAULT_FALLBACK:
+            env_fallback = os.getenv("GATEWAY_BASE_URL")
+            fallback_base_url = env_fallback or "http://127.0.0.1:8080"
+        self._fallback_base_url = fallback_base_url or None
         self._gateway_base_url: str | None = None
 
     def _discover_gateway(self) -> str:

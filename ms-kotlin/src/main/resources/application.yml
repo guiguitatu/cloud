@@ -6,6 +6,18 @@ server:
 spring:
   application:
     name: ms-kotlin
+  datasource:
+    url: jdbc:mysql://${MYSQL_HOST:localhost}:${MYSQL_PORT:3306}/${MYSQL_DATABASE:catalogo}?createDatabaseIfNotExist=true&serverTimezone=UTC
+    username: ${MYSQL_USER:catalogo}
+    password: ${MYSQL_PASSWORD:catalogo}
+    driver-class-name: com.mysql.cj.jdbc.Driver
+  jpa:
+    hibernate:
+      ddl-auto: update
+    open-in-view: false
+    properties:
+      hibernate:
+        format_sql: true
   cloud:
     consul:
       host: localhost

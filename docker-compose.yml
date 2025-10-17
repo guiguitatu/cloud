@@ -10,8 +10,29 @@ services:
       -bind=0.0.0.0
       -data-dir=/consul/data
     ports:
-      - "8500:8500"        
-      - "8600:8600/udp"    
+      - "8500:8500"
+      - "8600:8600/udp"
     volumes:
       - ./data:/consul/data
     restart: unless-stopped
+  mysql:
+    image: mysql:8.0
+    environment:
+      MYSQL_DATABASE: catalogo
+      MYSQL_USER: catalogo
+      MYSQL_PASSWORD: catalogo
+      MYSQL_ROOT_PASSWORD: root
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+    command: --default-authentication-plugin=mysql_native_password --lower_case_table_names=1
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+volumes:
+  mysql_data:

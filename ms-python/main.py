@@ -87,8 +87,11 @@ def deregister():
 
 if __name__ == "__main__":
     addr = os.getenv("SERVICE_ADDRESS") or get_outbound_ip()
-    port_env = os.getenv("PORT")
-    port = int(port_env) if port_env else 8000
+    port_env = os.getenv("PORT", "0")
+    try:
+        port = int(port_env)
+    except ValueError:
+        port = 0
     if port == 0:
         port = find_free_port()
     for _ in range(10):

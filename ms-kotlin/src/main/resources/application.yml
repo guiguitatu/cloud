@@ -1,5 +1,5 @@
 server:
-  port: 0  # porta dinamica
+  port: ${SERVER_PORT:${PORT:0}}  # usa porta dinâmica por padrão
   servlet:
     context-path: /ms-kotlin
 

@@ -22,6 +22,63 @@ Esta atividade tem como objetivo a implementação PARCIAL do sistema Cloud Nati
 - O uso de mensageria não será exigido nesta avaliação.
 - O foco principal está na separação dos microsserviços, integração via gateway e discovery, diversidade de tecnologias.
 - O repositório deve conter um README.md com os dados da equipe, o contexo comercial, a stack tecnológica e instruções de execução.
+---
+
+## Como executar o ambiente
+
+### Pré-requisitos
+
+- [Docker](https://www.docker.com/) e Docker Compose para subir o Consul e o MySQL 8.
+- JDK 17 ou superior (o projeto Kotlin usa Spring Boot 3.5).
+- Python 3.10 ou superior e `pip`.
+
+> Todas as instruções assumem que os comandos são executados a partir da raiz do repositório (`cloud/`).
+
+### 1. Iniciar os serviços de infraestrutura (Consul e MySQL)
+
+```bash
+docker compose up -d consul mysql
+```
+
+O Consul ficará disponível em `http://localhost:8500/ui` e o MySQL exposto em `localhost:3306` com o banco `catalogo` e o usuário `catalogo/catalogo`. Mantenha ambos em execução enquanto iniciar os microsserviços. Para acompanhar os logs, utilize `docker compose logs -f consul mysql`.
+
+### 2. Subir o microsserviço Kotlin (`ms-kotlin`)
+
+Em outro terminal:
+
+```bash
+cd ms-kotlin
+export MYSQL_HOST=localhost        # opcional, valores padrão já apontam para localhost
+export MYSQL_PORT=3306             # idem
+export MYSQL_DATABASE=catalogo
+export MYSQL_USER=catalogo
+export MYSQL_PASSWORD=catalogo
+./mvnw spring-boot:run
+# # Windows PowerShell (execute uma vez)
+# setx MYSQL_HOST localhost
+# setx MYSQL_PORT 3306
+# setx MYSQL_DATABASE catalogo
+# setx MYSQL_USER catalogo
+# setx MYSQL_PASSWORD catalogo
+# .\mvnw.cmd spring-boot:run
+```
+
+O Spring Boot utiliza porta dinâmica (definida para `0`), então verifique o log para saber a porta exposta ou consulte o Consul para descobrir o endereço registrado. Na primeira execução o serviço cria a tabela `produtos` automaticamente e popula três itens de exemplo.
+
+### 3. Subir o microsserviço Python (`ms-python`)
+
+Em um novo terminal, crie e ative um ambiente virtual (opcional, mas recomendado), instale as dependências e execute o serviço:
+
+```bash
+cd ms-python
+python -m venv .venv
+source .venv/bin/activate  # Linux/macOS
+# .venv\Scripts\activate  # Windows PowerShell
+pip install -r requirements.txt
+python main.py
+```
+
+Por padrão o serviço sobe na porta `8000` e se registra automaticamente no Consul. Utilize `CTRL+C` para finalizá-lo; o `atexit` garante o deregistro no Consul.
 
 ---
 ## Exemplo básico de README.md

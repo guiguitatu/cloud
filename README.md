@@ -1,29 +1,3 @@
-# Repositório de Referência Backend
-
-Este é o **repositório de referência** para a atividade prática da Somativa N1 de **Backend: Cloud Computing**.  
-Para a execução da atividade cada equipe deverá criar, `OBRIGATORIAMENTE`, um **fork** deste repositório com o nome da equipe/projeto fornecido pelo professor.
-
-### `Exemplo: E01-AstraBar`
-
-## Integração de microsserviços poliglotas com Service Discovery e Gateway
-
-Esta atividade tem como objetivo a implementação PARCIAL do sistema Cloud Native que está sendo desenvolvido/refatorado ao longo da disciplina, através da criação de **dois microsserviços escritos em diferentes linguagens de programação**, integrados por meio de um **Service Discovery (Consul)** e um **API Gateway (Spring Cloud Gateway ou alternativa)**, e visa avaliar a capacidade da equipe/aluno em projetar e implementar microsserviços funcionais, integrados a um sistema distribuído com base nos conceitos de Arquitetura Cloud Native.
-
-## Orientações gerais
-
-- A equipe deverá desenvolver **pelo menos dois microsserviços**, cada um escrito em uma linguagem de programação distinta (ex: Java + Node.js, Python + C#, etc).
-- Implementar uma **API REST funcional** em cada serviço, com ao menos um endpoint GET e um POST.
-- Documentar as APIs utilizando Swagger/OpenAPI.
-- Integrar os microsserviços ao **Service Discovery (Consul)** e **rotear chamadas HTTP via Gateway**.
-- Registrar e desregistrar os serviços corretamente (manualmente ou via autoregistro).
-- Utilizar o GitLab para versionamento colaborativo.
-- Cada integrante da equipe deverá contribuir com commits autorais e mensagens descritivas no repositório.
-- A integração deverá ser validada via requisições de teste com Postman, Insomnia ou equivalente (não será necessário frontend).
-- O uso de mensageria não será exigido nesta avaliação.
-- O foco principal está na separação dos microsserviços, integração via gateway e discovery, diversidade de tecnologias.
-- O repositório deve conter um README.md com os dados da equipe, o contexo comercial, a stack tecnológica e instruções de execução.
----
-
 ## Como executar o ambiente
 
 ### Pré-requisitos
@@ -40,7 +14,9 @@ Esta atividade tem como objetivo a implementação PARCIAL do sistema Cloud Nati
 docker compose up -d consul
 ```
 
-O Consul ficará disponível em `http://localhost:8500/ui`. Mantenha-o em execução enquanto iniciar os microsserviços. Para acompanhar os logs, utilize `docker compose logs -f consul`.
+O Consul ficará disponível em `http://localhost:8500/ui`. Ele roda isolado em um contêiner Docker e expõe apenas a porta `8500`; nenhuma aplicação passará a responder em `http://localhost:8080` até que o API Gateway seja iniciado nos passos seguintes. Mantenha o Consul em execução enquanto iniciar os microsserviços. Para acompanhar os logs, utilize `docker compose logs -f consul`.
+
+> **Quer subir o gateway ao mesmo tempo?** Chamar `docker compose up -d api-gateway` também iniciará automaticamente o serviço `consul` (graças ao `depends_on`) antes de liberar o gateway. Veja o passo 4.2 para mais detalhes e opções de logs.
 
 ### 2. Subir o microsserviço Kotlin (`ms-kotlin`)
 
@@ -71,6 +47,96 @@ python main.py
 ```
 
 Por padrão o serviço sobe na porta `8000` e se registra automaticamente no Consul. Utilize `CTRL+C` para finalizá-lo; o `atexit` garante o deregistro no Consul.
+
+Após o registro, a documentação Swagger pode ser acessada via gateway em `http://localhost:8080/ms-python/` (ou diretamente, usando a porta impressa no log, em `http://localhost:<porta>/ms-python/`).
+
+### 4. Subir o API Gateway (`api-gateway`)
+
+O gateway expõe um ponto de entrada único (`http://localhost:8080`) e faz o balanceamento chamando os microsserviços registrados no Consul. **Esse passo precisa ficar ativo**; se o processo não estiver em execução, qualquer requisição ao `localhost:8080` retornará erro de conexão recusada.
+
+#### 4.1 Executar localmente (sem Docker)
+
+```bash
+cd api-gateway
+./mvnw spring-boot:run
+# # Windows PowerShell (execute uma vez)
+# .\mvnw.cmd spring-boot:run
+```
+
+Ao iniciar, o log deve indicar `Tomcat started on port(s): 8080` (ou mensagem equivalente do servidor embutido). Você também pode validar que o gateway está no ar executando, em outro terminal:
+
+```bash
+curl http://localhost:8080/actuator/health
+```
+
+Uma resposta `{"status":"UP"}` confirma que o processo está aceitando conexões.
+
+#### 4.2 Executar o gateway via Docker Compose
+
+Se preferir manter o gateway lado a lado com o Consul dentro do Docker, utilize o serviço `api-gateway` incluído no `docker-compose.yml`:
+
+```bash
+# inicia gateway e consul de uma vez
+docker compose up -d api-gateway
+
+# (opcional) derruba apenas o gateway mantendo o Consul rodando
+docker compose stop api-gateway
+```
+
+Ao subir o gateway, o Compose garante que o contêiner `consul` esteja ativo antes da aplicação iniciar. Use `docker compose logs -f api-gateway` para acompanhar a inicialização. O contêiner já exporta a porta `8080` para o host; assim que o log indicar `Tomcat started on port(s): 8080`, o gateway estará acessível em `http://localhost:8080`.
+
+> O contêiner define automaticamente `SPRING_CLOUD_CONSUL_HOST=consul` para localizar o serviço de registro e usa `SERVICE_ADDRESS=host.docker.internal` como endereço publicado no Consul. Caso seu ambiente Docker não ofereça essa entrada DNS (ex.: Docker Engine em Linux sem suporte), altere a variável `SERVICE_ADDRESS` no `docker-compose.yml` para o IP do host ou outro endereço acessível.
+
+## Exemplos de uso via API Gateway
+
+Os exemplos abaixo assumem que o gateway está disponível em `http://localhost:8080` e os microsserviços já estão registrados no Consul. O Consul continua acessível em `http://localhost:8500/ui` apenas para interface administrativa.
+
+### ms-kotlin — catálogo de produtos
+
+#### Inserir um produto
+
+```bash
+curl -X POST "http://localhost:8080/ms-kotlin/produto" \
+  -H "Content-Type: application/json" \
+  -d '[{
+    "codigoProduto": 9001,
+    "descricao": "Mouse sem fio",
+    "preco": 199.9,
+    "codGruEst": 42
+  }]'
+```
+
+#### Consultar um produto
+
+```bash
+curl "http://localhost:8080/ms-kotlin/produto/1"
+```
+
+### ms-python — gestão de pedidos
+
+#### Inserir um pedido
+
+```bash
+curl -X POST "http://localhost:8080/ms-python/order" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "productCode": 9001,
+    "tableNumber": 12,
+    "quantity": 3
+  }'
+```
+
+#### Consultar pedidos por número
+
+```bash
+curl "http://localhost:8080/ms-python/order/1001"
+```
+
+## Problemas comuns
+
+- **`connect ECONNREFUSED 127.0.0.1:8080` ao usar Postman/cURL:** certifique-se de que o passo 4 (API Gateway) está ativo em um terminal. Sem ele, o Consul não encaminha chamadas por conta própria.
+- **"Docker não deveria expor o Consul em 8080?"**: o `docker compose up -d consul` inicia somente o Consul, que publica a interface HTTP na porta `8500`. A porta `8080` pertence ao API Gateway (Spring Cloud Gateway); execute o passo 4 para ter um serviço respondendo nesse endereço.
+- **`Invalid URL path: ensure the path starts with '/v1/'` no `localhost:8500`:** esse endereço é apenas a interface administrativa do Consul. Utilize o gateway em `http://localhost:8080` para acessar os microsserviços.
 
 ---
 ## Exemplo básico de README.md

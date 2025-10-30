@@ -28,19 +28,19 @@ Esta atividade tem como objetivo a implementação PARCIAL do sistema Cloud Nati
 
 ### Pré-requisitos
 
-- [Docker](https://www.docker.com/) e Docker Compose para subir o Consul e o MySQL 8.
+- [Docker](https://www.docker.com/) e Docker Compose para subir o Consul.
 - JDK 17 ou superior (o projeto Kotlin usa Spring Boot 3.5).
 - Python 3.10 ou superior e `pip`.
 
 > Todas as instruções assumem que os comandos são executados a partir da raiz do repositório (`cloud/`).
 
-### 1. Iniciar os serviços de infraestrutura (Consul e MySQL)
+### 1. Iniciar o serviço de infraestrutura (Consul)
 
 ```bash
-docker compose up -d consul mysql
+docker compose up -d consul
 ```
 
-O Consul ficará disponível em `http://localhost:8500/ui` e o MySQL exposto em `localhost:3306` com o banco `catalogo` e o usuário `catalogo/catalogo`. Mantenha ambos em execução enquanto iniciar os microsserviços. Para acompanhar os logs, utilize `docker compose logs -f consul mysql`.
+O Consul ficará disponível em `http://localhost:8500/ui`. Mantenha-o em execução enquanto iniciar os microsserviços. Para acompanhar os logs, utilize `docker compose logs -f consul`.
 
 ### 2. Subir o microsserviço Kotlin (`ms-kotlin`)
 
@@ -48,22 +48,14 @@ Em outro terminal:
 
 ```bash
 cd ms-kotlin
-export MYSQL_HOST=localhost        # opcional, valores padrão já apontam para localhost
-export MYSQL_PORT=3306             # idem
-export MYSQL_DATABASE=catalogo
-export MYSQL_USER=catalogo
-export MYSQL_PASSWORD=catalogo
 ./mvnw spring-boot:run
 # # Windows PowerShell (execute uma vez)
-# setx MYSQL_HOST localhost
-# setx MYSQL_PORT 3306
-# setx MYSQL_DATABASE catalogo
-# setx MYSQL_USER catalogo
-# setx MYSQL_PASSWORD catalogo
 # .\mvnw.cmd spring-boot:run
 ```
 
-O Spring Boot utiliza porta dinâmica (definida para `0`), então verifique o log para saber a porta exposta ou consulte o Consul para descobrir o endereço registrado. Na primeira execução o serviço cria a tabela `produtos` automaticamente e popula três itens de exemplo.
+O Spring Boot utiliza porta dinâmica (definida para `0`), então verifique o log para saber a porta exposta ou consulte o Consul para descobrir o endereço registrado. Por padrão o serviço utiliza um banco SQLite local em `catalogo.db`; caso deseje apontar para outro caminho, defina a variável de ambiente `SQLITE_DB_PATH` antes de executar o serviço. Na primeira execução o serviço cria a tabela `produtos` automaticamente e popula três itens de exemplo.
+
+> **Dica (Windows):** Para utilizar outro caminho de banco, execute `setx SQLITE_DB_PATH "C:\\caminho\\catalogo.db"` antes de iniciar o serviço com `.\mvnw.cmd spring-boot:run`.
 
 ### 3. Subir o microsserviço Python (`ms-python`)
 

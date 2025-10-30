@@ -7,11 +7,12 @@ spring:
   application:
     name: ms-kotlin
   datasource:
-    url: jdbc:mysql://${MYSQL_HOST:localhost}:${MYSQL_PORT:3306}/${MYSQL_DATABASE:catalogo}?createDatabaseIfNotExist=true&serverTimezone=UTC
-    username: ${MYSQL_USER:catalogo}
-    password: ${MYSQL_PASSWORD:catalogo}
-    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: jdbc:sqlite:${SQLITE_DB_PATH:./catalogo.db}
+    driver-class-name: org.sqlite.JDBC
+    hikari:
+      maximum-pool-size: 1 # SQLite permite apenas uma escrita por vez
   jpa:
+    database-platform: org.hibernate.community.dialect.SQLiteDialect
     hibernate:
       ddl-auto: update
     open-in-view: false

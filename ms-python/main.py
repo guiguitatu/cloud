@@ -41,14 +41,10 @@ app.include_router(orders_router, prefix=API_ROOT)
 
 @app.get("/", include_in_schema=False)
 def root() -> RedirectResponse:
-    return RedirectResponse(url=f"{API_ROOT}/", status_code=302)
+    return RedirectResponse(url=f"{API_ROOT}", status_code=302)
 
 
 @app.get(f"{API_ROOT}", include_in_schema=False)
-def swagger_redirect() -> RedirectResponse:
-    return RedirectResponse(url=f"{API_ROOT}/", status_code=302)
-
-
 @app.get(f"{API_ROOT}/", include_in_schema=False)
 def swagger_ui():
     return get_swagger_ui_html(

@@ -15,3 +15,76 @@ services:
     volumes:
       - ./data:/consul/data
     restart: unless-stopped
+    networks:
+      - cloud-network
+
+  ms-kotlin:
+    build:
+      context: ./ms-kotlin
+      dockerfile: Dockerfile
+    environment:
+      - SERVER_PORT=0
+      - SQLITE_DB_PATH=/app/data/catalogo.db
+      - SPRING_CLOUD_CONSUL_HOST=consul
+      - SPRING_CLOUD_CONSUL_PORT=8500
+    volumes:
+      - ./ms-kotlin-data:/app/data
+    networks:
+      - cloud-network
+    depends_on:
+      - consul
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "ps aux | grep '[j]ava.*ms-c' || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 40s
+
+  ms-python:
+    build:
+      context: ./ms-python
+      dockerfile: Dockerfile
+    environment:
+      - DATABASE_URL=sqlite:///./data/orders.db
+      - PORT=0
+      - SERVICE_ADDRESS=0.0.0.0
+      - CONSUL_HTTP_ADDR=http://consul:8500
+    volumes:
+      - ./ms-python-data:/app/data
+    networks:
+      - cloud-network
+    depends_on:
+      - consul
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "ps aux | grep '[p]ython.*main.py' || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 40s
+
+  api-gateway:
+    build:
+      context: ./api-gateway
+      dockerfile: Dockerfile
+    ports:
+      - "8080:8080"
+    environment:
+      - SPRING_CLOUD_CONSUL_HOST=consul
+      - SPRING_CLOUD_CONSUL_PORT=8500
+    networks:
+      - cloud-network
+    depends_on:
+      - consul
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8080/actuator/health || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 40s
+
+networks:
+  cloud-network:
+    driver: bridge

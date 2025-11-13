@@ -1,6 +1,105 @@
 ## Como executar o ambiente
 
-### 🚀 **Fluxo Simplificado (Recomendado)**
+Você pode executar o ambiente de duas formas: **localmente** (desenvolvimento) ou **com Docker** (produção/teste completo).
+
+### 🐳 **Execução com Docker (Recomendado para testes completos)**
+
+A execução com Docker permite iniciar os serviços individualmente e escalar dinamicamente conforme a demanda.
+
+#### Iniciar serviços individualmente
+
+```bash
+# 1. Iniciar Consul (necessário para descoberta de serviços)
+docker compose up -d consul
+
+# 2. Construir as imagens (primeira vez ou após mudanças)
+docker compose build
+
+# 3. Iniciar microsserviços individualmente
+docker compose up -d ms-kotlin
+docker compose up -d ms-python
+
+# 4. Iniciar o gateway
+docker compose up -d api-gateway
+```
+
+**Acessar os serviços:**
+- Gateway: `http://localhost:8080`
+- Consul UI: `http://localhost:8500/ui`
+
+#### Escalar serviços dinamicamente
+
+Você pode escalar os serviços criando múltiplas instâncias para testar o balanceamento de carga:
+
+```bash
+# Criar 3 instâncias do ms-kotlin
+docker compose up -d --scale ms-kotlin=3
+
+# Criar 2 instâncias do ms-python
+docker compose up -d --scale ms-python=2
+
+# O gateway automaticamente descobrirá todas as instâncias via Consul
+```
+
+**Ver instâncias rodando:**
+```bash
+# Listar containers de um serviço
+docker compose ps ms-kotlin
+docker compose ps ms-python
+
+# Ver todas as instâncias
+docker ps | grep ms-kotlin
+docker ps | grep ms-python
+```
+
+#### Comandos úteis
+
+**Parar serviços:**
+```bash
+# Parar um serviço específico
+docker compose stop ms-kotlin
+docker compose stop ms-python
+docker compose stop api-gateway
+
+# Parar todos os serviços
+docker compose down
+```
+
+**Ver logs:**
+```bash
+# Logs de todos os serviços
+docker compose logs -f
+
+# Logs de um serviço específico (todas as instâncias)
+docker compose logs -f ms-kotlin
+docker compose logs -f ms-python
+docker compose logs -f api-gateway
+
+# Logs de uma instância específica
+docker logs ms-kotlin-1
+docker logs ms-kotlin-2
+```
+
+**Recriar tudo do zero:**
+```bash
+docker compose down -v  # Remove volumes também
+docker compose build    # Reconstruir imagens
+docker compose up -d consul ms-kotlin ms-python api-gateway
+```
+
+**Iniciar tudo de uma vez (opcional):**
+```bash
+# Se preferir iniciar todos os serviços de uma vez
+docker compose up -d --build
+```
+
+**Nota:** Os bancos de dados SQLite são persistidos em volumes locais (`./ms-kotlin-data` e `./ms-python-data`). Quando você escala um serviço, cada instância usa o mesmo volume. Para produção, considere usar bancos de dados compartilhados ou volumes separados por instância.
+
+---
+
+### 🚀 **Execução Local (Desenvolvimento)**
+
+Se preferir executar localmente para desenvolvimento:
 
        ```bash
        # 1. Iniciar infraestrutura (opcional)
@@ -24,9 +123,13 @@
 
 ### Pré-requisitos
 
-- [Docker](https://www.docker.com/) e Docker Compose para subir o Consul.
-- JDK 17 ou superior (o projeto Kotlin usa Spring Boot 3.5).
-- Python 3.10 ou superior e `pip`.
+**Para execução com Docker (recomendado):**
+- [Docker](https://www.docker.com/) e Docker Compose instalados
+
+**Para execução local:**
+- [Docker](https://www.docker.com/) e Docker Compose para subir o Consul (opcional)
+- JDK 17 ou superior (o projeto Kotlin usa Spring Boot 3.5)
+- Python 3.10 ou superior e `pip`
 
 > Todas as instruções assumem que os comandos são executados a partir da raiz do repositório (`cloud/`).
 
@@ -193,6 +296,26 @@ O sistema implementa balanceamento de carga usando o algoritmo **Round Robin** p
 
 #### 1. Iniciar múltiplas instâncias do mesmo serviço
 
+**Com Docker (recomendado):**
+
+```bash
+# Garantir que Consul está rodando
+docker compose up -d consul
+
+# Escalar ms-kotlin para 3 instâncias
+docker compose up -d --scale ms-kotlin=3
+
+# Escalar ms-python para 2 instâncias
+docker compose up -d --scale ms-python=2
+
+# Iniciar gateway (se ainda não estiver rodando)
+docker compose up -d api-gateway
+```
+
+O gateway descobrirá automaticamente todas as instâncias via Consul e distribuirá as requisições entre elas usando Round Robin.
+
+**Localmente (para desenvolvimento):**
+
 **Para ms-kotlin (em terminais separados):**
 
 ```bash
@@ -286,10 +409,12 @@ X-Load-Balanced-Port: 49152  # Instância 1 (retornou ao início)
 
 ### Observações importantes
 
-- Cada instância deve usar um banco de dados separado (ou ajustar para evitar conflitos)
+- **Com Docker:** Cada instância compartilha o mesmo volume por padrão. Para produção, considere usar bancos de dados compartilhados (PostgreSQL, MySQL) ou volumes separados por instância
+- **Localmente:** Cada instância deve usar um banco de dados separado para evitar conflitos
 - O gateway atualiza a lista de instâncias a cada requisição
 - Instâncias que não respondem aos health checks são automaticamente removidas da rotação
-- O balanceamento funciona mesmo sem Consul (usa descoberta manual de portas)
+- Com Docker e Consul, todas as instâncias são descobertas automaticamente. Sem Consul, o gateway usa descoberta manual de portas
+- Para escalar dinamicamente, use `docker compose up -d --scale <serviço>=<número>` após iniciar o serviço pela primeira vez
 
 ---
 

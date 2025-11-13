@@ -107,9 +107,82 @@ docker compose stop api-gateway
 
 > **Nota:** A versão Docker do gateway ainda depende do Consul para descoberta de serviços.
 
+## Autenticação JWT
+
+O sistema utiliza autenticação JWT (JSON Web Token) para proteger os endpoints. Todos os endpoints dos microsserviços (exceto `/auth/login`, `/auth/validate` e endpoints de health) requerem autenticação.
+
+### Como usar o JWT
+
+#### 1. Fazer login e obter o token
+
+```bash
+curl -X POST "http://localhost:8080/auth/login" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "username": "admin",
+    "password": "admin123"
+  }'
+```
+
+**Resposta:**
+```json
+{
+  "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+  "tokenType": "Bearer",
+  "username": "admin",
+  "role": "ADMIN",
+  "expiresIn": 3600
+}
+```
+
+#### 2. Usar o token nas requisições
+
+Copie o token da resposta e use-o no header `Authorization` de todas as requisições:
+
+```bash
+curl -X GET "http://localhost:8080/ms-kotlin/produto" \
+  -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+```
+
+#### 3. Validar um token
+
+```bash
+curl -X POST "http://localhost:8080/auth/validate" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+  }'
+```
+
+### Usuários de exemplo
+
+O sistema vem com os seguintes usuários pré-configurados para testes:
+
+| Username | Password  | Role    |
+|----------|-----------|---------|
+| admin    | admin123  | ADMIN   |
+| user     | user123   | USER    |
+| manager  | manager123| MANAGER |
+
+**Nota:** Em produção, substitua esta autenticação simples por integração com um sistema de autenticação adequado (banco de dados, LDAP, etc.).
+
+### Endpoints públicos (não requerem autenticação)
+
+- `POST /auth/login` - Fazer login
+- `POST /auth/validate` - Validar token
+- `GET /actuator/health` - Health check
+- `GET /actuator/info` - Informações do sistema
+- `GET /` - Página inicial
+
+Todos os outros endpoints requerem o header `Authorization: Bearer <token>`.
+
+---
+
 ## Exemplos de uso via API Gateway
 
 Os exemplos abaixo assumem que todos os serviços estão rodando. O gateway automaticamente encontra os microsserviços independente das portas que eles escolherem.
+
+**⚠️ IMPORTANTE:** Todos os exemplos abaixo requerem autenticação JWT. Adicione o header `Authorization: Bearer <seu-token>` em todas as requisições.
 
 **URLs dos Swaggers (descobertas automaticamente):**
 - `http://localhost:8080/ms-kotlin/` → Swagger com catálogo de produtos e gestão de clientes
@@ -122,8 +195,15 @@ Os exemplos abaixo assumem que todos os serviços estão rodando. O gateway auto
 ##### Inserir um produto
 
 ```bash
+# Primeiro, faça login para obter o token
+TOKEN=$(curl -s -X POST "http://localhost:8080/auth/login" \
+  -H "Content-Type: application/json" \
+  -d '{"username":"admin","password":"admin123"}' | jq -r '.token')
+
+# Use o token para criar um produto
 curl -X POST "http://localhost:8080/ms-kotlin/produto" \
   -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $TOKEN" \
   -d '[{
     "codigoProduto": 9001,
     "descricao": "Mouse sem fio",
@@ -135,13 +215,24 @@ curl -X POST "http://localhost:8080/ms-kotlin/produto" \
 ##### Consultar um produto
 
 ```bash
-curl "http://localhost:8080/ms-kotlin/produto/1"
+# Obter token (se ainda não tiver)
+TOKEN=$(curl -s -X POST "http://localhost:8080/auth/login" \
+  -H "Content-Type: application/json" \
+  -d '{"username":"admin","password":"admin123"}' | jq -r '.token')
+
+curl -X GET "http://localhost:8080/ms-kotlin/produto/1" \
+  -H "Authorization: Bearer $TOKEN"
 ```
 
 ##### Listar todos os produtos
 
 ```bash
-curl "http://localhost:8080/ms-kotlin/produto"
+TOKEN=$(curl -s -X POST "http://localhost:8080/auth/login" \
+  -H "Content-Type: application/json" \
+  -d '{"username":"admin","password":"admin123"}' | jq -r '.token')
+
+curl -X GET "http://localhost:8080/ms-kotlin/produto" \
+  -H "Authorization: Bearer $TOKEN"
 ```
 
 #### Clientes
@@ -149,8 +240,13 @@ curl "http://localhost:8080/ms-kotlin/produto"
 ##### Criar um cliente
 
 ```bash
+TOKEN=$(curl -s -X POST "http://localhost:8080/auth/login" \
+  -H "Content-Type: application/json" \
+  -d '{"username":"admin","password":"admin123"}' | jq -r '.token')
+
 curl -X POST "http://localhost:8080/ms-kotlin/cliente" \
   -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $TOKEN" \
   -d '[{
     "cpf": "11122233344",
     "nome": "Carlos Oliveira",
@@ -167,25 +263,45 @@ curl -X POST "http://localhost:8080/ms-kotlin/cliente" \
 ##### Buscar cliente por ID
 
 ```bash
-curl "http://localhost:8080/ms-kotlin/cliente/1"
+TOKEN=$(curl -s -X POST "http://localhost:8080/auth/login" \
+  -H "Content-Type: application/json" \
+  -d '{"username":"admin","password":"admin123"}' | jq -r '.token')
+
+curl -X GET "http://localhost:8080/ms-kotlin/cliente/1" \
+  -H "Authorization: Bearer $TOKEN"
 ```
 
 ##### Buscar cliente por CPF
 
 ```bash
-curl "http://localhost:8080/ms-kotlin/cliente/cpf/12345678901"
+TOKEN=$(curl -s -X POST "http://localhost:8080/auth/login" \
+  -H "Content-Type: application/json" \
+  -d '{"username":"admin","password":"admin123"}' | jq -r '.token')
+
+curl -X GET "http://localhost:8080/ms-kotlin/cliente/cpf/12345678901" \
+  -H "Authorization: Bearer $TOKEN"
 ```
 
 ##### Listar todos os clientes
 
 ```bash
-curl "http://localhost:8080/ms-kotlin/cliente"
+TOKEN=$(curl -s -X POST "http://localhost:8080/auth/login" \
+  -H "Content-Type: application/json" \
+  -d '{"username":"admin","password":"admin123"}' | jq -r '.token')
+
+curl -X GET "http://localhost:8080/ms-kotlin/cliente" \
+  -H "Authorization: Bearer $TOKEN"
 ```
 
 ##### Listar apenas clientes ativos
 
 ```bash
-curl "http://localhost:8080/ms-kotlin/cliente?ativos=true"
+TOKEN=$(curl -s -X POST "http://localhost:8080/auth/login" \
+  -H "Content-Type: application/json" \
+  -d '{"username":"admin","password":"admin123"}' | jq -r '.token')
+
+curl -X GET "http://localhost:8080/ms-kotlin/cliente?ativos=true" \
+  -H "Authorization: Bearer $TOKEN"
 ```
 
 ### ms-python — Gestão de Pedidos e Pagamentos
@@ -195,8 +311,13 @@ curl "http://localhost:8080/ms-kotlin/cliente?ativos=true"
 ##### Inserir um pedido
 
 ```bash
+TOKEN=$(curl -s -X POST "http://localhost:8080/auth/login" \
+  -H "Content-Type: application/json" \
+  -d '{"username":"admin","password":"admin123"}' | jq -r '.token')
+
 curl -X POST "http://localhost:8080/ms-python/order" \
   -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $TOKEN" \
   -d '{
     "productCode": 9001,
     "tableNumber": 12,
@@ -207,7 +328,12 @@ curl -X POST "http://localhost:8080/ms-python/order" \
 ##### Consultar pedidos por número
 
 ```bash
-curl "http://localhost:8080/ms-python/order/1001"
+TOKEN=$(curl -s -X POST "http://localhost:8080/auth/login" \
+  -H "Content-Type: application/json" \
+  -d '{"username":"admin","password":"admin123"}' | jq -r '.token')
+
+curl -X GET "http://localhost:8080/ms-python/order/1001" \
+  -H "Authorization: Bearer $TOKEN"
 ```
 
 #### Pagamentos
@@ -215,8 +341,13 @@ curl "http://localhost:8080/ms-python/order/1001"
 ##### Criar um pagamento
 
 ```bash
+TOKEN=$(curl -s -X POST "http://localhost:8080/auth/login" \
+  -H "Content-Type: application/json" \
+  -d '{"username":"admin","password":"admin123"}' | jq -r '.token')
+
 curl -X POST "http://localhost:8080/ms-python/payment" \
   -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $TOKEN" \
   -d '{
     "orderNumber": 1001,
     "amount": 599.70,
@@ -227,20 +358,35 @@ curl -X POST "http://localhost:8080/ms-python/payment" \
 ##### Buscar pagamento por ID
 
 ```bash
-curl "http://localhost:8080/ms-python/payment/1"
+TOKEN=$(curl -s -X POST "http://localhost:8080/auth/login" \
+  -H "Content-Type: application/json" \
+  -d '{"username":"admin","password":"admin123"}' | jq -r '.token')
+
+curl -X GET "http://localhost:8080/ms-python/payment/1" \
+  -H "Authorization: Bearer $TOKEN"
 ```
 
 ##### Buscar pagamentos de um pedido
 
 ```bash
-curl "http://localhost:8080/ms-python/payment/order/1001"
+TOKEN=$(curl -s -X POST "http://localhost:8080/auth/login" \
+  -H "Content-Type: application/json" \
+  -d '{"username":"admin","password":"admin123"}' | jq -r '.token')
+
+curl -X GET "http://localhost:8080/ms-python/payment/order/1001" \
+  -H "Authorization: Bearer $TOKEN"
 ```
 
 ##### Atualizar status do pagamento
 
 ```bash
+TOKEN=$(curl -s -X POST "http://localhost:8080/auth/login" \
+  -H "Content-Type: application/json" \
+  -d '{"username":"admin","password":"admin123"}' | jq -r '.token')
+
 curl -X PUT "http://localhost:8080/ms-python/payment/1/status" \
   -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $TOKEN" \
   -d '{
     "status": "COMPLETED",
     "transactionId": "TXN-123456789"
@@ -250,12 +396,55 @@ curl -X PUT "http://localhost:8080/ms-python/payment/1/status" \
 ##### Listar todos os pagamentos
 
 ```bash
-curl "http://localhost:8080/ms-python/payment"
+TOKEN=$(curl -s -X POST "http://localhost:8080/auth/login" \
+  -H "Content-Type: application/json" \
+  -d '{"username":"admin","password":"admin123"}' | jq -r '.token')
+
+curl -X GET "http://localhost:8080/ms-python/payment" \
+  -H "Authorization: Bearer $TOKEN"
 ```
 
 **Métodos de pagamento disponíveis:** `CREDIT_CARD`, `DEBIT_CARD`, `PIX`, `CASH`, `DIGITAL_WALLET`
 
 **Status de pagamento disponíveis:** `PENDING`, `PROCESSING`, `COMPLETED`, `FAILED`, `CANCELLED`
+
+### Exemplo prático: Script completo
+
+Para facilitar o uso, você pode criar um script que obtém o token automaticamente:
+
+**Windows PowerShell:**
+```powershell
+# Fazer login e obter token
+$response = Invoke-RestMethod -Uri "http://localhost:8080/auth/login" `
+  -Method Post `
+  -ContentType "application/json" `
+  -Body '{"username":"admin","password":"admin123"}'
+
+$token = $response.token
+
+# Usar o token em uma requisição
+Invoke-RestMethod -Uri "http://localhost:8080/ms-kotlin/produto" `
+  -Method Get `
+  -Headers @{"Authorization"="Bearer $token"}
+```
+
+**Linux/Mac (Bash):**
+```bash
+#!/bin/bash
+# Obter token
+TOKEN=$(curl -s -X POST "http://localhost:8080/auth/login" \
+  -H "Content-Type: application/json" \
+  -d '{"username":"admin","password":"admin123"}' | jq -r '.token')
+
+# Exportar token para usar em outras requisições
+export TOKEN
+
+# Exemplo de uso
+curl -X GET "http://localhost:8080/ms-kotlin/produto" \
+  -H "Authorization: Bearer $TOKEN"
+```
+
+**Nota sobre jq:** Se você não tiver `jq` instalado, pode extrair o token manualmente da resposta JSON ou instalar: `sudo apt install jq` (Linux) ou `brew install jq` (Mac).
 
 ## Problemas comuns
 
@@ -264,6 +453,8 @@ curl "http://localhost:8080/ms-python/payment"
 - **Erro 404 ao acessar endpoints:** o gateway está funcionando, mas o microsserviço pode não ter a rota solicitada. Verifique se o endpoint existe no microsserviço.
 - **Consul mostra múltiplas instâncias mas gateway não encontra:** o gateway usa descoberta automática inteligente que funciona independentemente do Consul.
 - **`Invalid URL path: ensure the path starts with '/v1/'` no `localhost:8500`:** esse endereço é a interface administrativa do Consul. Use `http://localhost:8080` para acessar os microsserviços via gateway.
+- **Erro 401 Unauthorized ao acessar endpoints:** você não forneceu um token JWT válido ou o token expirou. Faça login novamente usando `POST /auth/login` e use o token retornado no header `Authorization: Bearer <token>`.
+- **Token inválido ou expirado:** tokens JWT têm validade de 1 hora. Se o token expirar, faça login novamente para obter um novo token.
 
 ---
 ## Exemplo básico de README.md

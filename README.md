@@ -178,9 +178,124 @@ Todos os outros endpoints requerem o header `Authorization: Bearer <token>`.
 
 ---
 
+## Balanceamento de Carga (Load Balancing)
+
+O sistema implementa balanceamento de carga usando o algoritmo **Round Robin** para distribuir requisições entre múltiplas instâncias do mesmo serviço.
+
+### Como funciona
+
+- O gateway descobre automaticamente todas as instâncias saudáveis de cada serviço
+- As requisições são distribuídas sequencialmente entre as instâncias disponíveis (Round Robin)
+- Health checks são realizados periodicamente para garantir que apenas instâncias saudáveis recebam tráfego
+- Se uma instância falhar, o gateway automaticamente tenta a próxima instância disponível
+
+### Como testar o balanceamento de carga
+
+#### 1. Iniciar múltiplas instâncias do mesmo serviço
+
+**Para ms-kotlin (em terminais separados):**
+
+```bash
+# Terminal 1
+cd ms-kotlin
+./mvnw.cmd spring-boot:run
+
+# Terminal 2 (nova janela)
+cd ms-kotlin
+# Definir uma porta diferente ou deixar usar porta dinâmica
+set SQLITE_DB_PATH=./catalogo2.db
+./mvnw.cmd spring-boot:run
+
+# Terminal 3 (se quiser uma terceira instância)
+cd ms-kotlin
+set SQLITE_DB_PATH=./catalogo3.db
+./mvnw.cmd spring-boot:run
+```
+
+**Para ms-python (em terminais separados):**
+
+```bash
+# Terminal 1
+cd ms-python
+python main.py
+
+# Terminal 2 (nova janela)
+cd ms-python
+set DATABASE_URL=sqlite:///./orders2.db
+python main.py
+
+# Terminal 3 (se quiser uma terceira instância)
+cd ms-python
+set DATABASE_URL=sqlite:///./orders3.db
+python main.py
+```
+
+#### 2. Verificar instâncias disponíveis
+
+```bash
+# Obter token de autenticação primeiro
+TOKEN=$(curl -s -X POST "http://localhost:8080/auth/login" \
+  -H "Content-Type: application/json" \
+  -d '{"username":"admin","password":"admin123"}' | jq -r '.token')
+
+# Ver instâncias do ms-kotlin
+curl -X GET "http://localhost:8080/loadbalancer/instances/ms-kotlin" \
+  -H "Authorization: Bearer $TOKEN"
+
+# Ver instâncias do ms-python
+curl -X GET "http://localhost:8080/loadbalancer/instances/ms-python" \
+  -H "Authorization: Bearer $TOKEN"
+```
+
+#### 3. Testar distribuição de requisições
+
+Faça várias requisições e observe o header `X-Load-Balanced-Port` na resposta:
+
+```bash
+TOKEN=$(curl -s -X POST "http://localhost:8080/auth/login" \
+  -H "Content-Type: application/json" \
+  -d '{"username":"admin","password":"admin123"}' | jq -r '.token')
+
+# Fazer várias requisições e verificar qual instância foi usada
+for i in {1..6}; do
+  echo "Requisição $i:"
+  curl -s -X GET "http://localhost:8080/ms-kotlin/produto" \
+    -H "Authorization: Bearer $TOKEN" \
+    -I | grep "X-Load-Balanced-Port"
+  sleep 1
+done
+```
+
+Você verá que as requisições são distribuídas sequencialmente entre as instâncias disponíveis.
+
+**Exemplo de resposta:**
+```
+X-Load-Balanced-Port: 49152  # Instância 1
+X-Load-Balanced-Port: 49153  # Instância 2
+X-Load-Balanced-Port: 49154  # Instância 3
+X-Load-Balanced-Port: 49152  # Instância 1 (retornou ao início)
+```
+
+### Recursos do balanceamento
+
+- ✅ **Descoberta automática** de instâncias via Consul ou descoberta manual
+- ✅ **Health checks** contínuos para garantir instâncias saudáveis
+- ✅ **Retry automático** em caso de falha (até 3 tentativas)
+- ✅ **Headers de debug** (`X-Load-Balanced-Instance` e `X-Load-Balanced-Port`)
+- ✅ **Tolerância a falhas** - remove automaticamente instâncias não saudáveis
+
+### Observações importantes
+
+- Cada instância deve usar um banco de dados separado (ou ajustar para evitar conflitos)
+- O gateway atualiza a lista de instâncias a cada requisição
+- Instâncias que não respondem aos health checks são automaticamente removidas da rotação
+- O balanceamento funciona mesmo sem Consul (usa descoberta manual de portas)
+
+---
+
 ## Exemplos de uso via API Gateway
 
-Os exemplos abaixo assumem que todos os serviços estão rodando. O gateway automaticamente encontra os microsserviços independente das portas que eles escolherem.
+Os exemplos abaixo assumem que todos os serviços estão rodando. O gateway automaticamente encontra os microsserviços independente das portas que eles escolherem e distribui as requisições entre múltiplas instâncias quando disponíveis.
 
 **⚠️ IMPORTANTE:** Todos os exemplos abaixo requerem autenticação JWT. Adicione o header `Authorization: Bearer <seu-token>` em todas as requisições.
 
@@ -455,6 +570,8 @@ curl -X GET "http://localhost:8080/ms-kotlin/produto" \
 - **`Invalid URL path: ensure the path starts with '/v1/'` no `localhost:8500`:** esse endereço é a interface administrativa do Consul. Use `http://localhost:8080` para acessar os microsserviços via gateway.
 - **Erro 401 Unauthorized ao acessar endpoints:** você não forneceu um token JWT válido ou o token expirou. Faça login novamente usando `POST /auth/login` e use o token retornado no header `Authorization: Bearer <token>`.
 - **Token inválido ou expirado:** tokens JWT têm validade de 1 hora. Se o token expirar, faça login novamente para obter um novo token.
+- **Balanceamento de carga não está funcionando:** certifique-se de que múltiplas instâncias do mesmo serviço estão rodando e verificáveis pelo gateway. Use `/loadbalancer/instances/{serviceName}` para verificar quantas instâncias foram descobertas.
+- **Instância não recebe requisições:** verifique se a instância está respondendo ao health check. O gateway remove automaticamente instâncias que não estão saudáveis.
 
 ---
 ## Exemplo básico de README.md

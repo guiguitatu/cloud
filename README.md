@@ -2,21 +2,21 @@
 
 ### 🚀 **Fluxo Simplificado (Recomendado)**
 
-```bash
-# 1. Iniciar infraestrutura (opcional)
-docker compose up -d consul
+       ```bash
+       # 1. Iniciar infraestrutura (opcional)
+       docker compose up -d consul
 
-# 2. Iniciar microsserviços (em terminais separados)
-cd ms-kotlin && ./mvnw.cmd spring-boot:run
-cd ms-python && pip install -r requirements.txt && python main.py
+       # 2. Iniciar microsserviços (em terminais separados)
+       cd ms-kotlin && ./mvnw.cmd spring-boot:run
+       cd ms-python && pip install -r requirements.txt && python main.py
 
-# 3. Iniciar gateway (descobre portas automaticamente)
-cd api-gateway && ./mvnw.cmd spring-boot:run
+       # 3. Iniciar gateway (usa portas conhecidas ou descobre automaticamente)
+       cd api-gateway && ./mvnw.cmd spring-boot:run
 
-# 4. Acessar Swaggers
-# http://localhost:8080/ms-kotlin/  → Catálogo de produtos
-# http://localhost:8080/ms-python/   → Gestão de pedidos
-```
+       # 4. Acessar APIs via Gateway
+       # http://localhost:8080/ms-kotlin/  → Catálogo de produtos (Kotlin)
+       # http://localhost:8080/ms-python/   → Gestão de pedidos (Python)
+       ```
 
 **🎯 Vantagens:** Gateway descobre portas automaticamente, não precisa configurar nada!
 
@@ -154,9 +154,10 @@ curl "http://localhost:8080/ms-python/order/1001"
 
 ## Problemas comuns
 
-- **`connect ECONNREFUSED 127.0.0.1:8080` ao usar Postman/cURL:** certifique-se de que o gateway está ativo (passo 4). O gateway deve estar rodando para responder nas portas `8080`.
-- **Gateway retorna 503 Service Unavailable:** os microsserviços não estão rodando ou não são encontrados. Verifique se ms-kotlin e ms-python estão ativos.
-- **Swagger não carrega:** aguarde alguns segundos após iniciar todos os serviços. O gateway precisa descobrir as portas dos microsserviços.
+- **`connect ECONNREFUSED 127.0.0.1:8080` ao usar Postman/cURL:** certifique-se de que o gateway está ativo (passo 3). O gateway deve estar rodando para responder na porta `8080`.
+- **Gateway retorna 503 Service Unavailable:** os microsserviços não estão rodando ou não são encontrados. Verifique se ms-kotlin e ms-python estão ativos nos terminais.
+- **Erro 404 ao acessar endpoints:** o gateway está funcionando, mas o microsserviço pode não ter a rota solicitada. Verifique se o endpoint existe no microsserviço.
+- **Consul mostra múltiplas instâncias mas gateway não encontra:** o gateway usa descoberta automática inteligente que funciona independentemente do Consul.
 - **`Invalid URL path: ensure the path starts with '/v1/'` no `localhost:8500`:** esse endereço é a interface administrativa do Consul. Use `http://localhost:8080` para acessar os microsserviços via gateway.
 
 ---

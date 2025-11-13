@@ -5,6 +5,12 @@ spring:
   application:
     name: api-gateway
 
+  cloud:
+    consul:
+      host: ${SPRING_CLOUD_CONSUL_HOST:localhost}
+      port: ${SPRING_CLOUD_CONSUL_PORT:8500}
+      discovery:
+        enabled: true
 
 management:
   endpoints:

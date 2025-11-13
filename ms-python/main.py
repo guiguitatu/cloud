@@ -6,6 +6,8 @@ from fastapi.openapi.docs import get_swagger_ui_html
 from fastapi.responses import PlainTextResponse, RedirectResponse
 from src.orders.controller import router as orders_router
 from src.orders.model import table_registry
+from src.payments.controller import router as payments_router
+from src.payments.model import table_registry as payments_table_registry
 
 
 CONSUL = os.getenv("CONSUL_HTTP_ADDR", "http://localhost:8500")
@@ -33,6 +35,7 @@ app = FastAPI(
 )
 
 app.include_router(orders_router, prefix=API_ROOT)
+app.include_router(payments_router, prefix=API_ROOT)
 
 
 @app.get("/", include_in_schema=False)
@@ -90,4 +93,5 @@ if __name__ == "__main__":
     atexit.register(deregister)
     from src.orders.database import engine
     table_registry.metadata.create_all(bind=engine)
+    payments_table_registry.metadata.create_all(bind=engine)
     uvicorn.run(app, host="0.0.0.0", port=port)

@@ -14,8 +14,8 @@
        cd api-gateway && ./mvnw.cmd spring-boot:run
 
        # 4. Acessar APIs via Gateway
-       # http://localhost:8080/ms-kotlin/  → Catálogo de produtos (Kotlin)
-       # http://localhost:8080/ms-python/   → Gestão de pedidos (Python)
+       # http://localhost:8080/ms-kotlin/  → Catálogo de produtos e Gestão de clientes (Kotlin)
+       # http://localhost:8080/ms-python/   → Gestão de pedidos e Pagamentos (Python)
        ```
 
 **🎯 Vantagens:** Gateway descobre portas automaticamente, não precisa configurar nada!
@@ -53,7 +53,9 @@ cd ms-kotlin
 
 O Spring Boot utiliza **porta dinâmica** (definida para `0`), escolhendo automaticamente uma porta livre. **Não é necessário** verificar logs ou consultar o Consul - o gateway encontra automaticamente onde o serviço está rodando.
 
-Por padrão o serviço utiliza um banco SQLite local em `catalogo.db`; caso deseje apontar para outro caminho, defina a variável de ambiente `SQLITE_DB_PATH` antes de executar o serviço. Na primeira execução o serviço cria a tabela `produtos` automaticamente e popula três itens de exemplo.
+Por padrão o serviço utiliza um banco SQLite local em `catalogo.db`; caso deseje apontar para outro caminho, defina a variável de ambiente `SQLITE_DB_PATH` antes de executar o serviço. Na primeira execução o serviço cria automaticamente as tabelas `produtos` e `clientes`, e popula dados de exemplo:
+- 3 produtos de exemplo no catálogo
+- 2 clientes de exemplo na base de clientes
 
 > **Dica (Windows):** Para utilizar outro caminho de banco, execute `setx SQLITE_DB_PATH "C:\\caminho\\catalogo.db"` antes de iniciar o serviço.
 
@@ -68,6 +70,8 @@ python main.py
 ```
 
 O serviço usa **porta dinâmica**, escolhendo automaticamente uma porta livre. **Não é necessário** verificar logs ou configurar ambiente virtual - o gateway encontra automaticamente onde o serviço está rodando.
+
+Na primeira execução o serviço cria automaticamente as tabelas `orders` e `payments` no banco SQLite local (`orders.db`).
 
 Utilize `CTRL+C` para finalizar o serviço.
 
@@ -108,12 +112,14 @@ docker compose stop api-gateway
 Os exemplos abaixo assumem que todos os serviços estão rodando. O gateway automaticamente encontra os microsserviços independente das portas que eles escolherem.
 
 **URLs dos Swaggers (descobertas automaticamente):**
-- `http://localhost:8080/ms-kotlin/` → Swagger do catálogo de produtos
-- `http://localhost:8080/ms-python/` → Swagger da gestão de pedidos
+- `http://localhost:8080/ms-kotlin/` → Swagger com catálogo de produtos e gestão de clientes
+- `http://localhost:8080/ms-python/` → Swagger com gestão de pedidos e pagamentos
 
-### ms-kotlin — catálogo de produtos
+### ms-kotlin — Catálogo de Produtos e Gestão de Clientes
 
-#### Inserir um produto
+#### Produtos
+
+##### Inserir um produto
 
 ```bash
 curl -X POST "http://localhost:8080/ms-kotlin/produto" \
@@ -122,19 +128,71 @@ curl -X POST "http://localhost:8080/ms-kotlin/produto" \
     "codigoProduto": 9001,
     "descricao": "Mouse sem fio",
     "preco": 199.9,
-    "codGruEst": 42
+    "codGruEst": 300
   }]'
 ```
 
-#### Consultar um produto
+##### Consultar um produto
 
 ```bash
 curl "http://localhost:8080/ms-kotlin/produto/1"
 ```
 
-### ms-python — gestão de pedidos
+##### Listar todos os produtos
 
-#### Inserir um pedido
+```bash
+curl "http://localhost:8080/ms-kotlin/produto"
+```
+
+#### Clientes
+
+##### Criar um cliente
+
+```bash
+curl -X POST "http://localhost:8080/ms-kotlin/cliente" \
+  -H "Content-Type: application/json" \
+  -d '[{
+    "cpf": "11122233344",
+    "nome": "Carlos Oliveira",
+    "email": "carlos.oliveira@email.com",
+    "telefone": "41988887777",
+    "endereco": "Av. Brasil, 456",
+    "cidade": "Curitiba",
+    "estado": "PR",
+    "cep": "80050000",
+    "ativo": true
+  }]'
+```
+
+##### Buscar cliente por ID
+
+```bash
+curl "http://localhost:8080/ms-kotlin/cliente/1"
+```
+
+##### Buscar cliente por CPF
+
+```bash
+curl "http://localhost:8080/ms-kotlin/cliente/cpf/12345678901"
+```
+
+##### Listar todos os clientes
+
+```bash
+curl "http://localhost:8080/ms-kotlin/cliente"
+```
+
+##### Listar apenas clientes ativos
+
+```bash
+curl "http://localhost:8080/ms-kotlin/cliente?ativos=true"
+```
+
+### ms-python — Gestão de Pedidos e Pagamentos
+
+#### Pedidos
+
+##### Inserir um pedido
 
 ```bash
 curl -X POST "http://localhost:8080/ms-python/order" \
@@ -146,11 +204,58 @@ curl -X POST "http://localhost:8080/ms-python/order" \
   }'
 ```
 
-#### Consultar pedidos por número
+##### Consultar pedidos por número
 
 ```bash
 curl "http://localhost:8080/ms-python/order/1001"
 ```
+
+#### Pagamentos
+
+##### Criar um pagamento
+
+```bash
+curl -X POST "http://localhost:8080/ms-python/payment" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "orderNumber": 1001,
+    "amount": 599.70,
+    "paymentMethod": "PIX"
+  }'
+```
+
+##### Buscar pagamento por ID
+
+```bash
+curl "http://localhost:8080/ms-python/payment/1"
+```
+
+##### Buscar pagamentos de um pedido
+
+```bash
+curl "http://localhost:8080/ms-python/payment/order/1001"
+```
+
+##### Atualizar status do pagamento
+
+```bash
+curl -X PUT "http://localhost:8080/ms-python/payment/1/status" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "status": "COMPLETED",
+    "transactionId": "TXN-123456789"
+  }'
+```
+
+##### Listar todos os pagamentos
+
+```bash
+curl "http://localhost:8080/ms-python/payment"
+```
+
+**Métodos de pagamento disponíveis:** `CREDIT_CARD`, `DEBIT_CARD`, `PIX`, `CASH`, `DIGITAL_WALLET`
+
+**Status de pagamento disponíveis:** `PENDING`, `PROCESSING`, `COMPLETED`, `FAILED`, `CANCELLED`
 
 ## Problemas comuns
 

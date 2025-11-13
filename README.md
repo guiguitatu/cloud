@@ -1,5 +1,27 @@
 ## Como executar o ambiente
 
+### 🚀 **Fluxo Simplificado (Recomendado)**
+
+```bash
+# 1. Iniciar infraestrutura (opcional)
+docker compose up -d consul
+
+# 2. Iniciar microsserviços (em terminais separados)
+cd ms-kotlin && ./mvnw.cmd spring-boot:run
+cd ms-python && pip install -r requirements.txt && python main.py
+
+# 3. Iniciar gateway (descobre portas automaticamente)
+cd api-gateway && ./mvnw.cmd spring-boot:run
+
+# 4. Acessar Swaggers
+# http://localhost:8080/ms-kotlin/  → Catálogo de produtos
+# http://localhost:8080/ms-python/   → Gestão de pedidos
+```
+
+**🎯 Vantagens:** Gateway descobre portas automaticamente, não precisa configurar nada!
+
+---
+
 ### Pré-requisitos
 
 - [Docker](https://www.docker.com/) e Docker Compose para subir o Consul.
@@ -8,15 +30,15 @@
 
 > Todas as instruções assumem que os comandos são executados a partir da raiz do repositório (`cloud/`).
 
-### 1. Iniciar o serviço de infraestrutura (Consul)
+### 1. Iniciar o serviço de infraestrutura (Consul) - Opcional
 
 ```bash
 docker compose up -d consul
 ```
 
-O Consul ficará disponível em `http://localhost:8500/ui`. Ele roda isolado em um contêiner Docker e expõe apenas a porta `8500`; nenhuma aplicação passará a responder em `http://localhost:8080` até que o API Gateway seja iniciado nos passos seguintes. Mantenha o Consul em execução enquanto iniciar os microsserviços. Para acompanhar os logs, utilize `docker compose logs -f consul`.
+O Consul ficará disponível em `http://localhost:8500/ui` para monitoramento. **Observação:** O gateway atual faz descoberta automática de portas e funciona **sem o Consul**, mas mantê-lo ativo permite monitoramento dos serviços registrados.
 
-> **Quer subir o gateway ao mesmo tempo?** Chamar `docker compose up -d api-gateway` também iniciará automaticamente o serviço `consul` (graças ao `depends_on`) antes de liberar o gateway. Veja o passo 4.2 para mais detalhes e opções de logs.
+> **Dica:** Se preferir iniciar tudo de uma vez, use `docker compose up -d` para subir Consul, MySQL e outros serviços de infraestrutura.
 
 ### 2. Subir o microsserviço Kotlin (`ms-kotlin`)
 
@@ -25,71 +47,69 @@ Em outro terminal:
 ```bash
 cd ms-kotlin
 ./mvnw spring-boot:run
-# # Windows PowerShell (execute uma vez)
+# Windows PowerShell
 # .\mvnw.cmd spring-boot:run
 ```
 
-O Spring Boot utiliza porta dinâmica (definida para `0`), então verifique o log para saber a porta exposta ou consulte o Consul para descobrir o endereço registrado. Por padrão o serviço utiliza um banco SQLite local em `catalogo.db`; caso deseje apontar para outro caminho, defina a variável de ambiente `SQLITE_DB_PATH` antes de executar o serviço. Na primeira execução o serviço cria a tabela `produtos` automaticamente e popula três itens de exemplo.
+O Spring Boot utiliza **porta dinâmica** (definida para `0`), escolhendo automaticamente uma porta livre. **Não é necessário** verificar logs ou consultar o Consul - o gateway encontra automaticamente onde o serviço está rodando.
 
-> **Dica (Windows):** Para utilizar outro caminho de banco, execute `setx SQLITE_DB_PATH "C:\\caminho\\catalogo.db"` antes de iniciar o serviço com `.\mvnw.cmd spring-boot:run`.
+Por padrão o serviço utiliza um banco SQLite local em `catalogo.db`; caso deseje apontar para outro caminho, defina a variável de ambiente `SQLITE_DB_PATH` antes de executar o serviço. Na primeira execução o serviço cria a tabela `produtos` automaticamente e popula três itens de exemplo.
+
+> **Dica (Windows):** Para utilizar outro caminho de banco, execute `setx SQLITE_DB_PATH "C:\\caminho\\catalogo.db"` antes de iniciar o serviço.
 
 ### 3. Subir o microsserviço Python (`ms-python`)
 
-Em um novo terminal, crie e ative um ambiente virtual (opcional, mas recomendado), instale as dependências e execute o serviço:
+Em um novo terminal, instale as dependências e execute o serviço:
 
 ```bash
 cd ms-python
-python -m venv .venv
-source .venv/bin/activate  # Linux/macOS
-# .venv\Scripts\activate  # Windows PowerShell
 pip install -r requirements.txt
 python main.py
 ```
 
-Por padrão o serviço sobe na porta `8000` e se registra automaticamente no Consul. Utilize `CTRL+C` para finalizá-lo; o `atexit` garante o deregistro no Consul.
+O serviço usa **porta dinâmica**, escolhendo automaticamente uma porta livre. **Não é necessário** verificar logs ou configurar ambiente virtual - o gateway encontra automaticamente onde o serviço está rodando.
 
-Após o registro, a documentação Swagger pode ser acessada via gateway em `http://localhost:8080/ms-python/` (ou diretamente, usando a porta impressa no log, em `http://localhost:<porta>/ms-python/`).
+Utilize `CTRL+C` para finalizar o serviço.
 
 ### 4. Subir o API Gateway (`api-gateway`)
 
-O gateway expõe um ponto de entrada único (`http://localhost:8080`) e faz o balanceamento chamando os microsserviços registrados no Consul. **Esse passo precisa ficar ativo**; se o processo não estiver em execução, qualquer requisição ao `localhost:8080` retornará erro de conexão recusada.
+O gateway expõe um ponto de entrada único (`http://localhost:8080`) e **descobre automaticamente as portas dos microsserviços**. Não depende do Consul para roteamento básico - usa descoberta inteligente de portas!
 
-#### 4.1 Executar localmente (sem Docker)
+#### 4.1 Executar localmente (recomendado)
 
 ```bash
 cd api-gateway
 ./mvnw spring-boot:run
-# # Windows PowerShell (execute uma vez)
+# Windows PowerShell
 # .\mvnw.cmd spring-boot:run
 ```
 
-Ao iniciar, o log deve indicar `Tomcat started on port(s): 8080` (ou mensagem equivalente do servidor embutido). Você também pode validar que o gateway está no ar executando, em outro terminal:
+O gateway iniciará na porta `8080` e automaticamente descobrirá onde estão os microsserviços, independente das portas que eles escolherem.
+
+**Como funciona a descoberta automática:**
+- Testa portas previamente conhecidas onde os serviços rodaram
+- Faz health checks (`/actuator/health` para Kotlin, `/health` para Python)
+- Encontra automaticamente os serviços e roteia as requisições
+
+#### 4.2 Executar via Docker (opcional)
 
 ```bash
-curl http://localhost:8080/actuator/health
-```
-
-Uma resposta `{"status":"UP"}` confirma que o processo está aceitando conexões.
-
-#### 4.2 Executar o gateway via Docker Compose
-
-Se preferir manter o gateway lado a lado com o Consul dentro do Docker, utilize o serviço `api-gateway` incluído no `docker-compose.yml`:
-
-```bash
-# inicia gateway e consul de uma vez
+# Inicia apenas o gateway (Consul precisa estar rodando)
 docker compose up -d api-gateway
 
-# (opcional) derruba apenas o gateway mantendo o Consul rodando
+# Para parar
 docker compose stop api-gateway
 ```
 
-Ao subir o gateway, o Compose garante que o contêiner `consul` esteja ativo antes da aplicação iniciar. Use `docker compose logs -f api-gateway` para acompanhar a inicialização. O contêiner já exporta a porta `8080` para o host; assim que o log indicar `Tomcat started on port(s): 8080`, o gateway estará acessível em `http://localhost:8080`.
-
-> O contêiner define automaticamente `SPRING_CLOUD_CONSUL_HOST=consul` para localizar o serviço de registro e usa `SERVICE_ADDRESS=host.docker.internal` como endereço publicado no Consul. Caso seu ambiente Docker não ofereça essa entrada DNS (ex.: Docker Engine em Linux sem suporte), altere a variável `SERVICE_ADDRESS` no `docker-compose.yml` para o IP do host ou outro endereço acessível.
+> **Nota:** A versão Docker do gateway ainda depende do Consul para descoberta de serviços.
 
 ## Exemplos de uso via API Gateway
 
-Os exemplos abaixo assumem que o gateway está disponível em `http://localhost:8080` e os microsserviços já estão registrados no Consul. O Consul continua acessível em `http://localhost:8500/ui` apenas para interface administrativa.
+Os exemplos abaixo assumem que todos os serviços estão rodando. O gateway automaticamente encontra os microsserviços independente das portas que eles escolherem.
+
+**URLs dos Swaggers (descobertas automaticamente):**
+- `http://localhost:8080/ms-kotlin/` → Swagger do catálogo de produtos
+- `http://localhost:8080/ms-python/` → Swagger da gestão de pedidos
 
 ### ms-kotlin — catálogo de produtos
 
@@ -134,9 +154,10 @@ curl "http://localhost:8080/ms-python/order/1001"
 
 ## Problemas comuns
 
-- **`connect ECONNREFUSED 127.0.0.1:8080` ao usar Postman/cURL:** certifique-se de que o passo 4 (API Gateway) está ativo em um terminal. Sem ele, o Consul não encaminha chamadas por conta própria.
-- **"Docker não deveria expor o Consul em 8080?"**: o `docker compose up -d consul` inicia somente o Consul, que publica a interface HTTP na porta `8500`. A porta `8080` pertence ao API Gateway (Spring Cloud Gateway); execute o passo 4 para ter um serviço respondendo nesse endereço.
-- **`Invalid URL path: ensure the path starts with '/v1/'` no `localhost:8500`:** esse endereço é apenas a interface administrativa do Consul. Utilize o gateway em `http://localhost:8080` para acessar os microsserviços.
+- **`connect ECONNREFUSED 127.0.0.1:8080` ao usar Postman/cURL:** certifique-se de que o gateway está ativo (passo 4). O gateway deve estar rodando para responder nas portas `8080`.
+- **Gateway retorna 503 Service Unavailable:** os microsserviços não estão rodando ou não são encontrados. Verifique se ms-kotlin e ms-python estão ativos.
+- **Swagger não carrega:** aguarde alguns segundos após iniciar todos os serviços. O gateway precisa descobrir as portas dos microsserviços.
+- **`Invalid URL path: ensure the path starts with '/v1/'` no `localhost:8500`:** esse endereço é a interface administrativa do Consul. Use `http://localhost:8080` para acessar os microsserviços via gateway.
 
 ---
 ## Exemplo básico de README.md

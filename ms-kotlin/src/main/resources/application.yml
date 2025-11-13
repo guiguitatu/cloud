@@ -1,7 +1,5 @@
 server:
   port: ${SERVER_PORT:${PORT:0}}  # usa porta dinâmica por padrão
-  servlet:
-    context-path: /ms-kotlin
 
 spring:
   application:
@@ -27,7 +25,7 @@ spring:
         register: true
         prefer-ip-address: true
         instance-id: ${spring.application.name}-${random.uuid}
-        health-check-path: /ms-kotlin/actuator/health
+        health-check-path: /actuator/health
         health-check-interval: 10s
         metadata:
           deregister-critical-service-after: 1m

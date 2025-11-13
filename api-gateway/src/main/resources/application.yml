@@ -5,34 +5,6 @@ spring:
   application:
     name: api-gateway
 
-  cloud:
-    consul:
-      host: ${SPRING_CLOUD_CONSUL_HOST:localhost}
-      port: ${SPRING_CLOUD_CONSUL_PORT:8500}
-      discovery:
-        enabled: true
-        register: true
-        prefer-ip-address: true
-        ip-address: ${SERVICE_ADDRESS:host.docker.internal}
-        health-check-path: /actuator/health
-        health-check-interval: 10s
-        deregister-critical-service-after: 1m
-
-    gateway:
-      server:
-        webflux:
-          discovery:
-            locator:
-              enabled: true
-              lower-case-service-id: true
-          routes:
-            - id: ms-kotlin
-              uri: lb://ms-kotlin
-              predicates: [ Path=/ms-kotlin/** ]
-
-            - id: ms-python
-              uri: lb://ms-python
-              predicates: [ Path=/ms-python/** ]
 
 management:
   endpoints:

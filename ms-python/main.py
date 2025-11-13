@@ -10,18 +10,14 @@ from src.orders.model import table_registry
 
 CONSUL = os.getenv("CONSUL_HTTP_ADDR", "http://localhost:8500")
 SERVICE_NAME = "ms-python"
-SERVICE_ID = f"{SERVICE_NAME}-{uuid.uuid4()}"
-API_ROOT = "/ms-python"
+SERVICE_ID = f"{SERVICE_NAME}-instance"  # ID consistente para permitir re-registro
+API_ROOT = ""
 
 
 def get_outbound_ip() -> str:
-    # descobre o IP “de saída”
-    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    try:
-        s.connect(("8.8.8.8", 80))
-        return s.getsockname()[0]
-    finally:
-        s.close()
+    # Para desenvolvimento local, sempre retorna localhost
+    # Em produção, você pode implementar descoberta dinâmica de IP
+    return "127.0.0.1"
 
 def find_free_port() -> int:
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
@@ -40,34 +36,31 @@ app.include_router(orders_router, prefix=API_ROOT)
 
 
 @app.get("/", include_in_schema=False)
-def root() -> RedirectResponse:
-    return RedirectResponse(url=f"{API_ROOT}", status_code=302)
-
-
-@app.get(f"{API_ROOT}", include_in_schema=False)
-@app.get(f"{API_ROOT}/", include_in_schema=False)
 def swagger_ui():
     return get_swagger_ui_html(
-        openapi_url=f"{API_ROOT}/openapi.json",
+        openapi_url="/openapi.json",
         title="ms-python - Swagger UI",
     )
 
-@app.get(f"{API_ROOT}/health")
+@app.get("/health")
 def health(): return {"status": "UP"}
 
-@app.get(f"{API_ROOT}/api/mensagem", response_class=PlainTextResponse)
+@app.get("/api/mensagem", response_class=PlainTextResponse)
 def mensagem(nome: str = "desenvolvedor"):
     return f"Olá, {nome}! (ms-python)"
 
 
 def register(addr: str, port: int):
+    # Tentar deregistrar qualquer registro anterior primeiro
+    deregister()
+
     payload = {
         "ID": SERVICE_ID,
         "Name": SERVICE_NAME,
         "Address": addr,
         "Port": port,
         "Check": {
-            "HTTP": f"http://{addr}:{port}{API_ROOT}/health",
+            "HTTP": f"http://{addr}:{port}/health",
             "Interval": "10s",
             "Timeout": "2s"
         }

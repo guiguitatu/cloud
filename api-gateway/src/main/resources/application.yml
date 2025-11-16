@@ -11,6 +11,10 @@ spring:
       port: ${SPRING_CLOUD_CONSUL_PORT:8500}
       discovery:
         enabled: true
+    gateway:
+      discovery:
+        locator:
+          enabled: false  # Desabilitar descoberta automática de rotas
 
 management:
   endpoints:

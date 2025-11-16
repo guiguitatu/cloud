@@ -1,725 +1,201 @@
-## Como executar o ambiente
+# Microserviços Cloud - PUC
 
-Você pode executar o ambiente de duas formas: **localmente** (desenvolvimento) ou **com Docker** (produção/teste completo).
+Este projeto contém uma arquitetura de microserviços com service discovery usando Consul.
 
-### 🐳 **Execução com Docker (Recomendado para testes completos)**
+## 🚀 Início Rápido
 
-A execução com Docker permite iniciar os serviços individualmente e escalar dinamicamente conforme a demanda.
-
-#### Iniciar serviços individualmente
-
-```bash
-# 1. Iniciar Consul (necessário para descoberta de serviços)
-docker compose up -d consul
-
-# 2. Construir as imagens (primeira vez ou após mudanças)
-docker compose build
-
-# 3. Iniciar microsserviços individualmente
-docker compose up -d ms-kotlin
-docker compose up -d ms-python
-
-# 4. Iniciar o gateway
-docker compose up -d api-gateway
+### Opção 1: Script Automático (Recomendado)
+```powershell
+# Executar o script de inicialização
+.\iniciar.ps1
 ```
 
-**Acessar os serviços:**
-- Gateway: `http://localhost:8080`
-- Consul UI: `http://localhost:8500/ui`
-
-#### Escalar serviços dinamicamente
-
-Você pode escalar os serviços criando múltiplas instâncias para testar o balanceamento de carga:
-
+### Opção 2: Manual
 ```bash
-# Criar 3 instâncias do ms-kotlin
-docker compose up -d --scale ms-kotlin=3
+# Construir e iniciar serviços
+docker-compose up -d --build
 
-# Criar 2 instâncias do ms-python
-docker compose up -d --scale ms-python=2
+# Aguardar inicialização
+sleep 15
 
-# O gateway automaticamente descobrirá todas as instâncias via Consul
+# Verificar status
+docker-compose ps
 ```
 
-**Ver instâncias rodando:**
-```bash
-# Listar containers de um serviço
-docker compose ps ms-kotlin
-docker compose ps ms-python
+## 📁 Arquivos do Projeto
 
-# Ver todas as instâncias
-docker ps | grep ms-kotlin
-docker ps | grep ms-python
-```
+- `docker-compose.yml` - Configuração dos serviços
+- `teste.http` - Arquivo de testes HTTP (VS Code REST Client)
+- `iniciar.ps1` - Script PowerShell para iniciar tudo
+- `exemplos-payloads.json` - Exemplos de payloads JSON para testes
+- `README.md` - Este arquivo
 
-#### Comandos úteis
+## 🏗️ Serviços
 
-**Parar serviços:**
-```bash
-# Parar um serviço específico
-docker compose stop ms-kotlin
-docker compose stop ms-python
-docker compose stop api-gateway
+| Serviço | Tecnologia | Porta | Descrição |
+|---------|------------|-------|-----------|
+| **Consul** | HashiCorp Consul | 8500 | Service Discovery |
+| **API Gateway** | Java/Spring Boot | 8080 | Gateway principal |
+| **ms-kotlin** | Kotlin/Spring Boot | Dinâmica | Microserviço Kotlin |
+| **ms-python** | Python/FastAPI | Dinâmica | Microserviço Python |
 
-# Parar todos os serviços
-docker compose down
-```
+## 🧪 Testes
 
-**Ver logs:**
-```bash
-# Logs de todos os serviços
-docker compose logs -f
+### Usando VS Code REST Client
+1. Instale a extensão "REST Client" no VS Code
+2. Abra o arquivo `teste.http`
+3. Clique em "Send Request" em cada endpoint
 
-# Logs de um serviço específico (todas as instâncias)
-docker compose logs -f ms-kotlin
-docker compose logs -f ms-python
-docker compose logs -f api-gateway
+O arquivo inclui testes completos com:
+- **GET**: Buscar/listar recursos
+- **POST**: Criar novos recursos
+- **PUT**: Atualizar recursos existentes
+- **DELETE**: Remover recursos
+- Headers apropriados (Content-Type: application/json)
+- Payloads realistas baseados nos modelos dos serviços
 
-# Logs de uma instância específica
-docker logs ms-kotlin-1
-docker logs ms-kotlin-2
-```
+### URLs Diretas
+- **API Gateway**: http://localhost:8080
+- **Consul UI**: http://localhost:8500
+- **ms-kotlin via Gateway**: http://localhost:8080/ms-kotlin/api/mensagem?nome=teste
+- **ms-python via Gateway**: http://localhost:8080/ms-python/api/mensagem?nome=teste
 
-**Recriar tudo do zero:**
-```bash
-docker compose down -v  # Remove volumes também
-docker compose build    # Reconstruir imagens
-docker compose up -d consul ms-kotlin ms-python api-gateway
-```
+## 📋 Endpoints Disponíveis
 
-**Iniciar tudo de uma vez (opcional):**
-```bash
-# Se preferir iniciar todos os serviços de uma vez
-docker compose up -d --build
-```
+### MS-Kotlin (Catálogo de Produtos)
+- `GET /ms-kotlin/produto` - Listar todos os produtos
+- `GET /ms-kotlin/produto/{id}` - Buscar produto por ID
+- `GET /ms-kotlin/produto/codigo/{codigo}` - Buscar por código do produto
+- `POST /ms-kotlin/produto` - Criar produto(s)
+- `PUT /ms-kotlin/produto/{id}` - Atualizar produto
+- `DELETE /ms-kotlin/produto/{id}` - Remover produto
 
-**Nota:** Os bancos de dados SQLite são persistidos em volumes locais (`./ms-kotlin-data` e `./ms-python-data`). Quando você escala um serviço, cada instância usa o mesmo volume. Para produção, considere usar bancos de dados compartilhados ou volumes separados por instância.
+**⚠️ Importante:** O ms-kotlin inicializa automaticamente 3 produtos com códigos 101, 202 e 303. Use códigos diferentes (401, 402, etc.) ao criar novos produtos para evitar conflito 409.
 
----
+**🐛 Erro 409 (Conflict):** Se receber erro 409 ao criar produtos, significa que o código do produto já existe. Use códigos únicos não utilizados pelos dados iniciais.
 
-### 🚀 **Execução Local (Desenvolvimento)**
+### MS-Python (Pedidos e Pagamentos)
+- `POST /ms-python/order/` - Criar pedido
+- `GET /ms-python/order/{numero}` - Buscar pedidos
+- `POST /ms-python/payment/` - Criar pagamento
+- `GET /ms-python/payment/{id}` - Buscar pagamento por ID
+- `GET /ms-python/payment/order/{numero}` - Pagamentos por pedido
+- `PUT /ms-python/payment/{id}/status` - Atualizar status do pagamento
+- `GET /ms-python/payment/` - Listar todos os pagamentos
 
-Se preferir executar localmente para desenvolvimento:
+### API Gateway
+- `GET /loadbalancer/instances/{servico}` - Ver instâncias ativas
 
-       ```bash
-       # 1. Iniciar infraestrutura (opcional)
-       docker compose up -d consul
-
-       # 2. Iniciar microsserviços (em terminais separados)
-       cd ms-kotlin && ./mvnw.cmd spring-boot:run
-       cd ms-python && pip install -r requirements.txt && python main.py
-
-       # 3. Iniciar gateway (usa portas conhecidas ou descobre automaticamente)
-       cd api-gateway && ./mvnw.cmd spring-boot:run
-
-       # 4. Acessar APIs via Gateway
-       # http://localhost:8080/ms-kotlin/  → Catálogo de produtos e Gestão de clientes (Kotlin)
-       # http://localhost:8080/ms-python/   → Gestão de pedidos e Pagamentos (Python)
-       ```
-
-**🎯 Vantagens:** Gateway descobre portas automaticamente, não precisa configurar nada!
-
----
-
-### Pré-requisitos
-
-**Para execução com Docker (recomendado):**
-- [Docker](https://www.docker.com/) e Docker Compose instalados
-
-**Para execução local:**
-- [Docker](https://www.docker.com/) e Docker Compose para subir o Consul (opcional)
-- JDK 17 ou superior (o projeto Kotlin usa Spring Boot 3.5)
-- Python 3.10 ou superior e `pip`
-
-> Todas as instruções assumem que os comandos são executados a partir da raiz do repositório (`cloud/`).
-
-### 1. Iniciar o serviço de infraestrutura (Consul) - Opcional
+## 🛠️ Comandos Úteis
 
 ```bash
-docker compose up -d consul
+# Ver logs
+docker-compose logs -f
+
+# Parar serviços
+docker-compose down
+
+# Ver status
+docker-compose ps
+
+# Limpeza completa
+docker-compose down --volumes --remove-orphans
+docker system prune -f
 ```
 
-O Consul ficará disponível em `http://localhost:8500/ui` para monitoramento. **Observação:** O gateway atual faz descoberta automática de portas e funciona **sem o Consul**, mas mantê-lo ativo permite monitoramento dos serviços registrados.
+## 🔧 Desenvolvimento
 
-> **Dica:** Se preferir iniciar tudo de uma vez, use `docker compose up -d` para subir Consul, MySQL e outros serviços de infraestrutura.
+Para desenvolvimento local, cada microserviço pode ser executado individualmente:
 
-### 2. Subir o microsserviço Kotlin (`ms-kotlin`)
-
-Em outro terminal:
-
+### ms-kotlin
 ```bash
 cd ms-kotlin
 ./mvnw spring-boot:run
-# Windows PowerShell
-# .\mvnw.cmd spring-boot:run
 ```
 
-O Spring Boot utiliza **porta dinâmica** (definida para `0`), escolhendo automaticamente uma porta livre. **Não é necessário** verificar logs ou consultar o Consul - o gateway encontra automaticamente onde o serviço está rodando.
-
-Por padrão o serviço utiliza um banco SQLite local em `catalogo.db`; caso deseje apontar para outro caminho, defina a variável de ambiente `SQLITE_DB_PATH` antes de executar o serviço. Na primeira execução o serviço cria automaticamente as tabelas `produtos` e `clientes`, e popula dados de exemplo:
-- 3 produtos de exemplo no catálogo
-- 2 clientes de exemplo na base de clientes
-
-> **Dica (Windows):** Para utilizar outro caminho de banco, execute `setx SQLITE_DB_PATH "C:\\caminho\\catalogo.db"` antes de iniciar o serviço.
-
-### 3. Subir o microsserviço Python (`ms-python`)
-
-Em um novo terminal, instale as dependências e execute o serviço:
-
+### ms-python
 ```bash
 cd ms-python
-pip install -r requirements.txt
 python main.py
 ```
 
-O serviço usa **porta dinâmica**, escolhendo automaticamente uma porta livre. **Não é necessário** verificar logs ou configurar ambiente virtual - o gateway encontra automaticamente onde o serviço está rodando.
-
-Na primeira execução o serviço cria automaticamente as tabelas `orders` e `payments` no banco SQLite local (`orders.db`).
-
-Utilize `CTRL+C` para finalizar o serviço.
-
-### 4. Subir o API Gateway (`api-gateway`)
-
-O gateway expõe um ponto de entrada único (`http://localhost:8080`) e **descobre automaticamente as portas dos microsserviços**. Não depende do Consul para roteamento básico - usa descoberta inteligente de portas!
-
-#### 4.1 Executar localmente (recomendado)
-
+### API Gateway
 ```bash
 cd api-gateway
 ./mvnw spring-boot:run
-# Windows PowerShell
-# .\mvnw.cmd spring-boot:run
 ```
 
-O gateway iniciará na porta `8080` e automaticamente descobrirá onde estão os microsserviços, independente das portas que eles escolherem.
+## 📊 Monitoramento
 
-**Como funciona a descoberta automática:**
-- Testa portas previamente conhecidas onde os serviços rodaram
-- Faz health checks (`/actuator/health` para Kotlin, `/health` para Python)
-- Encontra automaticamente os serviços e roteia as requisições
+- **Consul Dashboard**: http://localhost:8500
+- **Health Checks**: http://localhost:8080/actuator/health
+- **Load Balancer Info**: http://localhost:8080/loadbalancer/instances/{service-name}
 
-#### 4.2 Executar via Docker (opcional)
+## 🐛 Troubleshooting
 
+### Serviços não sobem
 ```bash
-# Inicia apenas o gateway (Consul precisa estar rodando)
-docker compose up -d api-gateway
+# Verificar logs detalhados
+docker-compose logs
 
-# Para parar
-docker compose stop api-gateway
+# Limpeza e reinício
+.\iniciar.ps1 -Clean
 ```
 
-> **Nota:** A versão Docker do gateway ainda depende do Consul para descoberta de serviços.
-
-## Autenticação JWT
-
-O sistema utiliza autenticação JWT (JSON Web Token) para proteger os endpoints. Todos os endpoints dos microsserviços (exceto `/auth/login`, `/auth/validate` e endpoints de health) requerem autenticação.
-
-### Como usar o JWT
-
-#### 1. Fazer login e obter o token
-
+### Porta ocupada
 ```bash
-curl -X POST "http://localhost:8080/auth/login" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "username": "admin",
-    "password": "admin123"
-  }'
+# Verificar portas em uso
+netstat -ano | findstr :8080
+netstat -ano | findstr :8500
 ```
 
-**Resposta:**
-```json
+### Docker não responde
+```bash
+# Reiniciar Docker Desktop
+# Ou no PowerShell como administrador:
+Restart-Service docker
+```
+
+### Erro 409 (Conflict) no ms-kotlin
+```bash
+# Este erro ocorre quando tenta criar um produto com código já existente
+# O ms-kotlin inicializa automaticamente produtos com códigos 101, 202, 303
+
+# Solução: Use códigos diferentes
+POST /ms-kotlin/produto
 {
-  "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
-  "tokenType": "Bearer",
-  "username": "admin",
-  "role": "ADMIN",
-  "expiresIn": 3600
+  "codigoProduto": 401,  // Use códigos a partir de 401
+  "descricao": "Novo Produto",
+  "preco": 99.99,
+  "codGruEst": 300
 }
 ```
 
-#### 2. Usar o token nas requisições
-
-Copie o token da resposta e use-o no header `Authorization` de todas as requisições:
-
+### Produto não encontrado (404)
 ```bash
-curl -X GET "http://localhost:8080/ms-kotlin/produto" \
-  -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+# Verifique se o ID do produto existe
+GET /ms-kotlin/produto
+
+# Use um ID válido da lista retornada
+PUT /ms-kotlin/produto/{id}
 ```
 
-#### 3. Validar um token
-
+### Erro no ms-python (TypeError: missing argument)
 ```bash
-curl -X POST "http://localhost:8080/auth/validate" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
-  }'
+# Este erro ocorria ao criar pagamentos devido a campos opcionais
+# Corrigido adicionando init=False nos campos opcionais do PaymentModel
+
+# Para recriar o problema (não recomendado):
+# 1. Remover init=False dos campos transactionId e updatedAt
+# 2. Reiniciar ms-python
+# 3. Tentar criar pagamento
+
+# Solução aplicada no PaymentModel:
+transactionId: Mapped[Optional[str]] = mapped_column(
+    nullable=True, init=False, default=None
+)
 ```
-
-### Usuários de exemplo
-
-O sistema vem com os seguintes usuários pré-configurados para testes:
-
-| Username | Password  | Role    |
-|----------|-----------|---------|
-| admin    | admin123  | ADMIN   |
-| user     | user123   | USER    |
-| manager  | manager123| MANAGER |
-
-**Nota:** Em produção, substitua esta autenticação simples por integração com um sistema de autenticação adequado (banco de dados, LDAP, etc.).
-
-### Endpoints públicos (não requerem autenticação)
-
-- `POST /auth/login` - Fazer login
-- `POST /auth/validate` - Validar token
-- `GET /actuator/health` - Health check
-- `GET /actuator/info` - Informações do sistema
-- `GET /` - Página inicial
-
-Todos os outros endpoints requerem o header `Authorization: Bearer <token>`.
 
 ---
 
-## Balanceamento de Carga (Load Balancing)
-
-O sistema implementa balanceamento de carga usando o algoritmo **Round Robin** para distribuir requisições entre múltiplas instâncias do mesmo serviço.
-
-### Como funciona
-
-- O gateway descobre automaticamente todas as instâncias saudáveis de cada serviço
-- As requisições são distribuídas sequencialmente entre as instâncias disponíveis (Round Robin)
-- Health checks são realizados periodicamente para garantir que apenas instâncias saudáveis recebam tráfego
-- Se uma instância falhar, o gateway automaticamente tenta a próxima instância disponível
-
-### Como testar o balanceamento de carga
-
-#### 1. Iniciar múltiplas instâncias do mesmo serviço
-
-**Com Docker (recomendado):**
-
-```bash
-# Garantir que Consul está rodando
-docker compose up -d consul
-
-# Escalar ms-kotlin para 3 instâncias
-docker compose up -d --scale ms-kotlin=3
-
-# Escalar ms-python para 2 instâncias
-docker compose up -d --scale ms-python=2
-
-# Iniciar gateway (se ainda não estiver rodando)
-docker compose up -d api-gateway
-```
-
-O gateway descobrirá automaticamente todas as instâncias via Consul e distribuirá as requisições entre elas usando Round Robin.
-
-**Localmente (para desenvolvimento):**
-
-**Para ms-kotlin (em terminais separados):**
-
-```bash
-# Terminal 1
-cd ms-kotlin
-./mvnw.cmd spring-boot:run
-
-# Terminal 2 (nova janela)
-cd ms-kotlin
-# Definir uma porta diferente ou deixar usar porta dinâmica
-set SQLITE_DB_PATH=./catalogo2.db
-./mvnw.cmd spring-boot:run
-
-# Terminal 3 (se quiser uma terceira instância)
-cd ms-kotlin
-set SQLITE_DB_PATH=./catalogo3.db
-./mvnw.cmd spring-boot:run
-```
-
-**Para ms-python (em terminais separados):**
-
-```bash
-# Terminal 1
-cd ms-python
-python main.py
-
-# Terminal 2 (nova janela)
-cd ms-python
-set DATABASE_URL=sqlite:///./orders2.db
-python main.py
-
-# Terminal 3 (se quiser uma terceira instância)
-cd ms-python
-set DATABASE_URL=sqlite:///./orders3.db
-python main.py
-```
-
-#### 2. Verificar instâncias disponíveis
-
-```bash
-# Obter token de autenticação primeiro
-TOKEN=$(curl -s -X POST "http://localhost:8080/auth/login" \
-  -H "Content-Type: application/json" \
-  -d '{"username":"admin","password":"admin123"}' | jq -r '.token')
-
-# Ver instâncias do ms-kotlin
-curl -X GET "http://localhost:8080/loadbalancer/instances/ms-kotlin" \
-  -H "Authorization: Bearer $TOKEN"
-
-# Ver instâncias do ms-python
-curl -X GET "http://localhost:8080/loadbalancer/instances/ms-python" \
-  -H "Authorization: Bearer $TOKEN"
-```
-
-#### 3. Testar distribuição de requisições
-
-Faça várias requisições e observe o header `X-Load-Balanced-Port` na resposta:
-
-```bash
-TOKEN=$(curl -s -X POST "http://localhost:8080/auth/login" \
-  -H "Content-Type: application/json" \
-  -d '{"username":"admin","password":"admin123"}' | jq -r '.token')
-
-# Fazer várias requisições e verificar qual instância foi usada
-for i in {1..6}; do
-  echo "Requisição $i:"
-  curl -s -X GET "http://localhost:8080/ms-kotlin/produto" \
-    -H "Authorization: Bearer $TOKEN" \
-    -I | grep "X-Load-Balanced-Port"
-  sleep 1
-done
-```
-
-Você verá que as requisições são distribuídas sequencialmente entre as instâncias disponíveis.
-
-**Exemplo de resposta:**
-```
-X-Load-Balanced-Port: 49152  # Instância 1
-X-Load-Balanced-Port: 49153  # Instância 2
-X-Load-Balanced-Port: 49154  # Instância 3
-X-Load-Balanced-Port: 49152  # Instância 1 (retornou ao início)
-```
-
-### Recursos do balanceamento
-
-- ✅ **Descoberta automática** de instâncias via Consul ou descoberta manual
-- ✅ **Health checks** contínuos para garantir instâncias saudáveis
-- ✅ **Retry automático** em caso de falha (até 3 tentativas)
-- ✅ **Headers de debug** (`X-Load-Balanced-Instance` e `X-Load-Balanced-Port`)
-- ✅ **Tolerância a falhas** - remove automaticamente instâncias não saudáveis
-
-### Observações importantes
-
-- **Com Docker:** Cada instância compartilha o mesmo volume por padrão. Para produção, considere usar bancos de dados compartilhados (PostgreSQL, MySQL) ou volumes separados por instância
-- **Localmente:** Cada instância deve usar um banco de dados separado para evitar conflitos
-- O gateway atualiza a lista de instâncias a cada requisição
-- Instâncias que não respondem aos health checks são automaticamente removidas da rotação
-- Com Docker e Consul, todas as instâncias são descobertas automaticamente. Sem Consul, o gateway usa descoberta manual de portas
-- Para escalar dinamicamente, use `docker compose up -d --scale <serviço>=<número>` após iniciar o serviço pela primeira vez
-
----
-
-## Exemplos de uso via API Gateway
-
-Os exemplos abaixo assumem que todos os serviços estão rodando. O gateway automaticamente encontra os microsserviços independente das portas que eles escolherem e distribui as requisições entre múltiplas instâncias quando disponíveis.
-
-**⚠️ IMPORTANTE:** Todos os exemplos abaixo requerem autenticação JWT. Adicione o header `Authorization: Bearer <seu-token>` em todas as requisições.
-
-**URLs dos Swaggers (descobertas automaticamente):**
-- `http://localhost:8080/ms-kotlin/` → Swagger com catálogo de produtos e gestão de clientes
-- `http://localhost:8080/ms-python/` → Swagger com gestão de pedidos e pagamentos
-
-### ms-kotlin — Catálogo de Produtos e Gestão de Clientes
-
-#### Produtos
-
-##### Inserir um produto
-
-```bash
-# Primeiro, faça login para obter o token
-TOKEN=$(curl -s -X POST "http://localhost:8080/auth/login" \
-  -H "Content-Type: application/json" \
-  -d '{"username":"admin","password":"admin123"}' | jq -r '.token')
-
-# Use o token para criar um produto
-curl -X POST "http://localhost:8080/ms-kotlin/produto" \
-  -H "Content-Type: application/json" \
-  -H "Authorization: Bearer $TOKEN" \
-  -d '[{
-    "codigoProduto": 9001,
-    "descricao": "Mouse sem fio",
-    "preco": 199.9,
-    "codGruEst": 300
-  }]'
-```
-
-##### Consultar um produto
-
-```bash
-# Obter token (se ainda não tiver)
-TOKEN=$(curl -s -X POST "http://localhost:8080/auth/login" \
-  -H "Content-Type: application/json" \
-  -d '{"username":"admin","password":"admin123"}' | jq -r '.token')
-
-curl -X GET "http://localhost:8080/ms-kotlin/produto/1" \
-  -H "Authorization: Bearer $TOKEN"
-```
-
-##### Listar todos os produtos
-
-```bash
-TOKEN=$(curl -s -X POST "http://localhost:8080/auth/login" \
-  -H "Content-Type: application/json" \
-  -d '{"username":"admin","password":"admin123"}' | jq -r '.token')
-
-curl -X GET "http://localhost:8080/ms-kotlin/produto" \
-  -H "Authorization: Bearer $TOKEN"
-```
-
-#### Clientes
-
-##### Criar um cliente
-
-```bash
-TOKEN=$(curl -s -X POST "http://localhost:8080/auth/login" \
-  -H "Content-Type: application/json" \
-  -d '{"username":"admin","password":"admin123"}' | jq -r '.token')
-
-curl -X POST "http://localhost:8080/ms-kotlin/cliente" \
-  -H "Content-Type: application/json" \
-  -H "Authorization: Bearer $TOKEN" \
-  -d '[{
-    "cpf": "11122233344",
-    "nome": "Carlos Oliveira",
-    "email": "carlos.oliveira@email.com",
-    "telefone": "41988887777",
-    "endereco": "Av. Brasil, 456",
-    "cidade": "Curitiba",
-    "estado": "PR",
-    "cep": "80050000",
-    "ativo": true
-  }]'
-```
-
-##### Buscar cliente por ID
-
-```bash
-TOKEN=$(curl -s -X POST "http://localhost:8080/auth/login" \
-  -H "Content-Type: application/json" \
-  -d '{"username":"admin","password":"admin123"}' | jq -r '.token')
-
-curl -X GET "http://localhost:8080/ms-kotlin/cliente/1" \
-  -H "Authorization: Bearer $TOKEN"
-```
-
-##### Buscar cliente por CPF
-
-```bash
-TOKEN=$(curl -s -X POST "http://localhost:8080/auth/login" \
-  -H "Content-Type: application/json" \
-  -d '{"username":"admin","password":"admin123"}' | jq -r '.token')
-
-curl -X GET "http://localhost:8080/ms-kotlin/cliente/cpf/12345678901" \
-  -H "Authorization: Bearer $TOKEN"
-```
-
-##### Listar todos os clientes
-
-```bash
-TOKEN=$(curl -s -X POST "http://localhost:8080/auth/login" \
-  -H "Content-Type: application/json" \
-  -d '{"username":"admin","password":"admin123"}' | jq -r '.token')
-
-curl -X GET "http://localhost:8080/ms-kotlin/cliente" \
-  -H "Authorization: Bearer $TOKEN"
-```
-
-##### Listar apenas clientes ativos
-
-```bash
-TOKEN=$(curl -s -X POST "http://localhost:8080/auth/login" \
-  -H "Content-Type: application/json" \
-  -d '{"username":"admin","password":"admin123"}' | jq -r '.token')
-
-curl -X GET "http://localhost:8080/ms-kotlin/cliente?ativos=true" \
-  -H "Authorization: Bearer $TOKEN"
-```
-
-### ms-python — Gestão de Pedidos e Pagamentos
-
-#### Pedidos
-
-##### Inserir um pedido
-
-```bash
-TOKEN=$(curl -s -X POST "http://localhost:8080/auth/login" \
-  -H "Content-Type: application/json" \
-  -d '{"username":"admin","password":"admin123"}' | jq -r '.token')
-
-curl -X POST "http://localhost:8080/ms-python/order" \
-  -H "Content-Type: application/json" \
-  -H "Authorization: Bearer $TOKEN" \
-  -d '{
-    "productCode": 9001,
-    "tableNumber": 12,
-    "quantity": 3
-  }'
-```
-
-##### Consultar pedidos por número
-
-```bash
-TOKEN=$(curl -s -X POST "http://localhost:8080/auth/login" \
-  -H "Content-Type: application/json" \
-  -d '{"username":"admin","password":"admin123"}' | jq -r '.token')
-
-curl -X GET "http://localhost:8080/ms-python/order/1001" \
-  -H "Authorization: Bearer $TOKEN"
-```
-
-#### Pagamentos
-
-##### Criar um pagamento
-
-```bash
-TOKEN=$(curl -s -X POST "http://localhost:8080/auth/login" \
-  -H "Content-Type: application/json" \
-  -d '{"username":"admin","password":"admin123"}' | jq -r '.token')
-
-curl -X POST "http://localhost:8080/ms-python/payment" \
-  -H "Content-Type: application/json" \
-  -H "Authorization: Bearer $TOKEN" \
-  -d '{
-    "orderNumber": 1001,
-    "amount": 599.70,
-    "paymentMethod": "PIX"
-  }'
-```
-
-##### Buscar pagamento por ID
-
-```bash
-TOKEN=$(curl -s -X POST "http://localhost:8080/auth/login" \
-  -H "Content-Type: application/json" \
-  -d '{"username":"admin","password":"admin123"}' | jq -r '.token')
-
-curl -X GET "http://localhost:8080/ms-python/payment/1" \
-  -H "Authorization: Bearer $TOKEN"
-```
-
-##### Buscar pagamentos de um pedido
-
-```bash
-TOKEN=$(curl -s -X POST "http://localhost:8080/auth/login" \
-  -H "Content-Type: application/json" \
-  -d '{"username":"admin","password":"admin123"}' | jq -r '.token')
-
-curl -X GET "http://localhost:8080/ms-python/payment/order/1001" \
-  -H "Authorization: Bearer $TOKEN"
-```
-
-##### Atualizar status do pagamento
-
-```bash
-TOKEN=$(curl -s -X POST "http://localhost:8080/auth/login" \
-  -H "Content-Type: application/json" \
-  -d '{"username":"admin","password":"admin123"}' | jq -r '.token')
-
-curl -X PUT "http://localhost:8080/ms-python/payment/1/status" \
-  -H "Content-Type: application/json" \
-  -H "Authorization: Bearer $TOKEN" \
-  -d '{
-    "status": "COMPLETED",
-    "transactionId": "TXN-123456789"
-  }'
-```
-
-##### Listar todos os pagamentos
-
-```bash
-TOKEN=$(curl -s -X POST "http://localhost:8080/auth/login" \
-  -H "Content-Type: application/json" \
-  -d '{"username":"admin","password":"admin123"}' | jq -r '.token')
-
-curl -X GET "http://localhost:8080/ms-python/payment" \
-  -H "Authorization: Bearer $TOKEN"
-```
-
-**Métodos de pagamento disponíveis:** `CREDIT_CARD`, `DEBIT_CARD`, `PIX`, `CASH`, `DIGITAL_WALLET`
-
-**Status de pagamento disponíveis:** `PENDING`, `PROCESSING`, `COMPLETED`, `FAILED`, `CANCELLED`
-
-### Exemplo prático: Script completo
-
-Para facilitar o uso, você pode criar um script que obtém o token automaticamente:
-
-**Windows PowerShell:**
-```powershell
-# Fazer login e obter token
-$response = Invoke-RestMethod -Uri "http://localhost:8080/auth/login" `
-  -Method Post `
-  -ContentType "application/json" `
-  -Body '{"username":"admin","password":"admin123"}'
-
-$token = $response.token
-
-# Usar o token em uma requisição
-Invoke-RestMethod -Uri "http://localhost:8080/ms-kotlin/produto" `
-  -Method Get `
-  -Headers @{"Authorization"="Bearer $token"}
-```
-
-**Linux/Mac (Bash):**
-```bash
-#!/bin/bash
-# Obter token
-TOKEN=$(curl -s -X POST "http://localhost:8080/auth/login" \
-  -H "Content-Type: application/json" \
-  -d '{"username":"admin","password":"admin123"}' | jq -r '.token')
-
-# Exportar token para usar em outras requisições
-export TOKEN
-
-# Exemplo de uso
-curl -X GET "http://localhost:8080/ms-kotlin/produto" \
-  -H "Authorization: Bearer $TOKEN"
-```
-
-**Nota sobre jq:** Se você não tiver `jq` instalado, pode extrair o token manualmente da resposta JSON ou instalar: `sudo apt install jq` (Linux) ou `brew install jq` (Mac).
-
-## Problemas comuns
-
-- **`connect ECONNREFUSED 127.0.0.1:8080` ao usar Postman/cURL:** certifique-se de que o gateway está ativo (passo 3). O gateway deve estar rodando para responder na porta `8080`.
-- **Gateway retorna 503 Service Unavailable:** os microsserviços não estão rodando ou não são encontrados. Verifique se ms-kotlin e ms-python estão ativos nos terminais.
-- **Erro 404 ao acessar endpoints:** o gateway está funcionando, mas o microsserviço pode não ter a rota solicitada. Verifique se o endpoint existe no microsserviço.
-- **Consul mostra múltiplas instâncias mas gateway não encontra:** o gateway usa descoberta automática inteligente que funciona independentemente do Consul.
-- **`Invalid URL path: ensure the path starts with '/v1/'` no `localhost:8500`:** esse endereço é a interface administrativa do Consul. Use `http://localhost:8080` para acessar os microsserviços via gateway.
-- **Erro 401 Unauthorized ao acessar endpoints:** você não forneceu um token JWT válido ou o token expirou. Faça login novamente usando `POST /auth/login` e use o token retornado no header `Authorization: Bearer <token>`.
-- **Token inválido ou expirado:** tokens JWT têm validade de 1 hora. Se o token expirar, faça login novamente para obter um novo token.
-- **Balanceamento de carga não está funcionando:** certifique-se de que múltiplas instâncias do mesmo serviço estão rodando e verificáveis pelo gateway. Use `/loadbalancer/instances/{serviceName}` para verificar quantas instâncias foram descobertas.
-- **Instância não recebe requisições:** verifique se a instância está respondendo ao health check. O gateway remove automaticamente instâncias que não estão saudáveis.
-
----
-## Exemplo básico de README.md
-
-## Nome do projeto
-
-## Equipe
-
-- Nome do Projeto: **[preencher com o nome definido pelo professor]**  
-- Integrantes:
-  - Nome 1 – @usuario1
-  - Nome 2 – @usuario2
-  - Nome 3 – @usuario3
-  - Nome 4 – @usuario4
----
-
-## Contexto Comercial
-
-Descrever o **cenário de negócio** escolhido pela equipe (ex.: sistema de pedidos, reservas, pagamentos, catálogo de produtos, etc.).
-
----
-
-## Stack Tecnológica
-
-- **Linguagem de Programação:** [Java, Python, Node.js, Go, C# …]  
-- **Ferramentas de Integração:** [Spring Cloud Gateway e Consul]  
+**Projeto acadêmico - PUC**

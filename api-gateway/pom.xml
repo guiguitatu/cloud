@@ -42,6 +42,12 @@
         <dependency>
             <groupId>org.springframework.cloud</groupId>
             <artifactId>spring-cloud-starter-consul-discovery</artifactId>
+            <exclusions>
+                <exclusion>
+                    <groupId>org.springframework.cloud</groupId>
+                    <artifactId>spring-cloud-starter-gateway</artifactId>
+                </exclusion>
+            </exclusions>
         </dependency>
         <!-- JWT Dependencies -->
         <dependency>

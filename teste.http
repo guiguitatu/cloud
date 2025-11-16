@@ -1,0 +1,215 @@
+### API Gateway - Testes Básicos
+
+### 1. Testar API Gateway (Raiz)
+GET http://localhost:8080/
+
+###
+
+### 2. Health Check do Gateway
+GET http://localhost:8080/actuator/health
+
+###
+
+### 3. Verificar instâncias do ms-kotlin (Load Balancer)
+GET http://localhost:8080/loadbalancer/instances/ms-kotlin
+
+###
+
+### 4. Verificar instâncias do ms-python (Load Balancer)
+GET http://localhost:8080/loadbalancer/instances/ms-python
+
+###
+
+## 📝 MS-KOTLIN - Catálogo de Produtos (via Gateway)
+# NOTA: O ms-kotlin inicializa automaticamente 3 produtos:
+# - Código 101: Café especial em grãos 1kg
+# - Código 202: Caixa de barras de cereal sortidas
+# - Código 303: Teclado mecânico compacto
+# Use códigos diferentes (401, 402, etc.) para criar novos produtos
+
+### 5. Listar todos os produtos (GET)
+GET http://localhost:8080/ms-kotlin/produto
+
+###
+
+### 6. Buscar produto por ID (GET)
+GET http://localhost:8080/ms-kotlin/produto/1
+
+###
+
+### 7. Buscar produto por código (GET)
+GET http://localhost:8080/ms-kotlin/produto/codigo/101
+
+###
+
+### 8. Criar produto(s) (POST)
+POST http://localhost:8080/ms-kotlin/produto
+Content-Type: application/json
+
+[
+  {
+    "codigoProduto": 101010,
+    "descricao": "Mouse banana",
+    "preco": 149.90,
+    "codGruEst": 300
+  }
+]
+
+###
+
+### 9. Atualizar produto (PUT)
+# Primeiro execute o teste 5 para ver os IDs disponíveis
+PUT http://localhost:8080/ms-kotlin/produto/4
+Content-Type: application/json
+
+{
+  "codigoProduto": 303,
+  "descricao": "Teclado Mecânico Compacto - Edição Gamer",
+  "preco": 399.90,
+  "codGruEst": 300
+}
+
+###
+
+### 10. Remover produto (DELETE)
+# Cuidado: Este comando remove permanentemente o produto
+DELETE http://localhost:8080/ms-kotlin/produto/4
+
+###
+
+### 11. Mensagem do ms-kotlin (GET)
+GET http://localhost:8080/ms-kotlin/api/mensagem?nome=Desenvolvedor
+
+###
+
+## 🛒 MS-PYTHON - Pedidos e Pagamentos (via Gateway)
+
+### 12. Criar pedido (POST)
+POST http://localhost:8080/ms-python/order/
+Content-Type: application/json
+
+{
+  "productCode": 101,
+  "tableNumber": 5,
+  "quantity": 2
+}
+
+###
+
+###
+
+### 13. Buscar pedidos por número (GET)
+GET http://localhost:8080/ms-python/order/1
+
+###
+
+### 14. Criar pagamento (POST)
+POST http://localhost:8080/ms-python/payment/
+Content-Type: application/json
+
+{
+  "orderNumber": 1,
+  "amount": 599.98,
+  "paymentMethod": "CREDIT_CARD"
+}
+
+###
+
+### 15. Buscar pagamento por ID (GET)
+GET http://localhost:8080/ms-python/payment/1
+
+###
+
+### 16. Buscar pagamentos por pedido (GET)
+GET http://localhost:8080/ms-python/payment/order/1
+
+###
+
+### 17. Atualizar status do pagamento (PUT)
+PUT http://localhost:8080/ms-python/payment/1/status
+Content-Type: application/json
+
+{
+  "status": "COMPLETED",
+  "transactionId": "TXN-2024-001"
+}
+
+###
+
+### 18. Listar todos os pagamentos (GET)
+GET http://localhost:8080/ms-python/payment/
+
+###
+
+### 19. Mensagem do ms-python (GET)
+GET http://localhost:8080/ms-python/api/mensagem?nome=Desenvolvedor
+
+###
+
+## 🔍 Consul Service Discovery - Testes
+
+### 20. Ver serviços registrados no Consul (GET)
+GET http://localhost:8500/v1/catalog/services
+
+###
+
+### 21. Detalhes do ms-kotlin no Consul (GET)
+GET http://localhost:8500/v1/catalog/service/ms-kotlin
+
+###
+
+### 22. Detalhes do ms-python no Consul (GET)
+GET http://localhost:8500/v1/catalog/service/ms-python
+
+###
+
+### 23. Detalhes do api-gateway no Consul (GET)
+GET http://localhost:8500/v1/catalog/service/api-gateway
+
+###
+
+### 24. Status do líder Consul (GET)
+GET http://localhost:8500/v1/status/leader
+
+###
+
+## 🔧 Testes Diretos dos Microserviços (Debug)
+
+### 25. ms-kotlin direto - Health Check (GET)
+# GET http://ms-kotlin:porta/actuator/health
+
+###
+
+### 26. ms-python direto - Health Check (GET)
+# GET http://ms-python:porta/health
+
+###
+
+### 27. ms-kotlin direto - Criar produto (POST)
+# POST http://ms-kotlin:porta/produto
+# Content-Type: application/json
+#
+# [
+#   {
+#     "codigoProduto": 501,
+#     "descricao": "Monitor 4K 27\"",
+#     "preco": 1299.99,
+#     "codGruEst": 400
+#   }
+# ]
+
+###
+
+### 28. ms-python direto - Criar pedido (POST)
+# POST http://ms-python:porta/order/
+# Content-Type: application/json
+#
+# {
+#   "productCode": 101,
+#   "tableNumber": 10,
+#   "quantity": 1
+# }
+
+###
+
+###

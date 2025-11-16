@@ -31,17 +31,17 @@ class PaymentModel:
     paymentMethod: Mapped[str] = mapped_column(
         nullable=False
     )
+    transactionId: Mapped[Optional[str]] = mapped_column(
+        nullable=True, init=False, default=None
+    )
+    updatedAt: Mapped[Optional[datetime]] = mapped_column(
+        nullable=True, init=False, default=None
+    )
     status: Mapped[str] = mapped_column(
         nullable=False, default="PENDING"
     )
-    transactionId: Mapped[Optional[str]] = mapped_column(
-        nullable=True
-    )
     createdAt: Mapped[datetime] = mapped_column(
         nullable=False, default_factory=datetime.now, init=False
-    )
-    updatedAt: Mapped[Optional[datetime]] = mapped_column(
-        nullable=True
     )
 
 

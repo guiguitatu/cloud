@@ -1,0 +1,75 @@
+{
+  "ms-kotlin-produtos": {
+    "dados_iniciais": [
+      { "codigo": 101, "nome": "Café especial em grãos 1kg" },
+      { "codigo": 202, "nome": "Caixa de barras de cereal sortidas" },
+      { "codigo": 303, "nome": "Teclado mecânico compacto" }
+    ],
+    "criar_produto": [
+      {
+        "codigoProduto": 401,
+        "descricao": "Teclado Mecânico RGB",
+        "preco": 299.99,
+        "codGruEst": 300
+      }
+    ],
+    "criar_multiplos_produtos": [
+      {
+        "codigoProduto": 401,
+        "descricao": "Teclado Mecânico RGB",
+        "preco": 299.99,
+        "codGruEst": 300
+      },
+      {
+        "codigoProduto": 402,
+        "descricao": "Mouse Gamer Óptico",
+        "preco": 149.90,
+        "codGruEst": 300
+      },
+      {
+        "codigoProduto": 501,
+        "descricao": "Monitor 4K 27\"",
+        "preco": 1299.99,
+        "codGruEst": 400
+      }
+    ],
+    "atualizar_produto": {
+      "codigoProduto": 401,
+      "descricao": "Teclado Mecânico RGB - Edição Limitada",
+      "preco": 349.99,
+      "codGruEst": 300
+    }
+  },
+  "ms-python-pedidos": {
+    "criar_pedido": {
+      "productCode": 101,
+      "tableNumber": 5,
+      "quantity": 2
+    }
+  },
+  "ms-python-pagamentos": {
+    "criar_pagamento": {
+      "orderNumber": 1,
+      "amount": 599.98,
+      "paymentMethod": "CREDIT_CARD"
+    },
+    "atualizar_status": {
+      "status": "COMPLETED",
+      "transactionId": "TXN-2024-001"
+    },
+    "status_opcoes": [
+      "PENDING",
+      "PROCESSING",
+      "COMPLETED",
+      "FAILED",
+      "CANCELLED"
+    ],
+    "metodos_pagamento": [
+      "CREDIT_CARD",
+      "DEBIT_CARD",
+      "PIX",
+      "CASH",
+      "BANK_TRANSFER"
+    ]
+  }
+}

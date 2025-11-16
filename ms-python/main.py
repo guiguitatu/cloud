@@ -19,7 +19,39 @@ API_ROOT = ""
 def get_outbound_ip() -> str:
     # Para desenvolvimento local, sempre retorna localhost
     # Em produção, você pode implementar descoberta dinâmica de IP
-    return "127.0.0.1"
+    service_addr = os.getenv("SERVICE_ADDRESS")
+    print(f"SERVICE_ADDRESS env var: {service_addr}")
+    if service_addr and service_addr != "0.0.0.0":
+        print(f"Using SERVICE_ADDRESS: {service_addr}")
+        return service_addr
+
+    # Tentar descobrir o IP da rede Docker
+    try:
+        # Para containers Docker, tentar descobrir o IP da interface de rede
+        import socket
+        # Criar um socket UDP e conectar a um host externo para descobrir o IP local
+        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        s.connect(("8.8.8.8", 80))  # Google DNS
+        ip = s.getsockname()[0]
+        s.close()
+        print(f"Discovered IP via external connection: {ip}")
+        return ip
+    except Exception as e:
+        print(f"Failed to discover IP via external connection: {e}")
+        # Fallback: tentar ler do hostname ou usar host.docker.internal para Docker Desktop
+        try:
+            import socket
+            hostname = socket.gethostname()
+            ip = socket.gethostbyname(hostname)
+            print(f"Discovered IP via hostname: {ip}")
+            if ip != "127.0.0.1":
+                return ip
+        except Exception as e:
+            print(f"Failed to discover IP via hostname: {e}")
+            pass
+        # Último fallback
+        print("Using fallback: host.docker.internal")
+        return "host.docker.internal"
 
 def find_free_port() -> int:
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
@@ -68,7 +100,14 @@ def register(addr: str, port: int):
             "Timeout": "2s"
         }
     }
-    requests.put(f"{CONSUL}/v1/agent/service/register", json=payload, timeout=3)
+    print(f"Registering service {SERVICE_NAME} at {addr}:{port} with Consul at {CONSUL}")
+    try:
+        response = requests.put(f"{CONSUL}/v1/agent/service/register", json=payload, timeout=3)
+        print(f"Registration response: {response.status_code}")
+        if response.status_code != 200:
+            print(f"Registration failed: {response.text}")
+    except Exception as e:
+        print(f"Registration error: {e}")
 
 def deregister():
     try:

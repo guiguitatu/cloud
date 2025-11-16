@@ -54,8 +54,9 @@ public class LoadBalancerService {
                 List<ServiceInstance> consulInstances = discoveryClient.getInstances(serviceName);
                 for (ServiceInstance instance : consulInstances) {
                     if (isInstanceHealthy(serviceName, instance.getPort())) {
+                        // Para containers Docker, usar o nome do serviço em vez do host
                         validInstances.add(new ServiceInstanceInfo(
-                            instance.getHost(),
+                            serviceName,
                             instance.getPort(),
                             instance.getInstanceId()
                         ));
@@ -101,9 +102,9 @@ public class LoadBalancerService {
 
     private boolean isInstanceHealthy(String serviceName, int port) {
         try {
-            String healthUrl = serviceName.equals("ms-kotlin") ?
-                "http://localhost:" + port + "/actuator/health" :
-                "http://localhost:" + port + "/health";
+            // Para containers Docker, usar o nome do serviço na rede Docker
+            String healthUrl = "http://" + serviceName + ":" + port +
+                (serviceName.equals("ms-kotlin") ? "/actuator/health" : "/health");
 
             ResponseEntity<String> response = restTemplate.getForEntity(healthUrl, String.class);
             if (response.getStatusCode() == HttpStatus.OK) {
